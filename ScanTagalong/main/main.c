@@ -475,11 +475,30 @@ void app_main(void)
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-    esp_bt_controller_init(&bt_cfg);
-    esp_bt_controller_enable(ESP_BT_MODE_BLE);
-    esp_bluedroid_init();
-    esp_bluedroid_enable();
+    
+    esp_err_t ret;
+    ret = esp_bt_controller_init(&bt_cfg);
+    if (ret != ESP_OK) {
+        ESP_LOGE(LOG_TAG, "Bluetooth controller initialize failed\n");
+        return;
+    }
+    ret = esp_bt_controller_enable(ESP_BT_MODE_BLE);
+    if (ret != ESP_OK) {
+        ESP_LOGE(LOG_TAG, "Bluetooth controller enable failed\n");
+        return;
+    }
 
+    ret = esp_bluedroid_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(LOG_TAG, "Bluedroid init failed\n");
+        return;
+    }    
+    ret = esp_bluedroid_enable();
+    if (ret != ESP_OK) {
+        ESP_LOGE(LOG_TAG, "Bluedroid enable failed\n");
+        return;
+    }
+    
     // Init WIFI
     // ESP_LOGI(WIFI_TAG, "ESP_WIFI_MODE_STA");
     // wifi_init_sta();
