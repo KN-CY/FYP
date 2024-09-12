@@ -263,12 +263,17 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
     esp_err_t err;
 
     switch (event) {
-        case ESP_GAP_BLE_ADV_DATA_RAW_SET_COMPLETE_EVT:
-            ESP_LOGI(MY_LOG, "About to call esp_ble_gap_start_advertising");
+        // Advertising related
+        case ESP_GAP_BLE_ADV_DATA_RAW_SET_COMPLETE_EVT: /*!< When raw advertising data set complete, the event comes */
+            ESP_LOGI(MY_LOG, "Case ESP_GAP_BLE_ADV_DATA_RAW_SET_COMPLETE_EVT reached");
+            ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_start_advertising");
             esp_ble_gap_start_advertising(&ble_adv_params);
+            ESP_LOGI(MY_LOG, "After calling esp_ble_gap_start_advertising");
+
             break;
 
-        case ESP_GAP_BLE_ADV_START_COMPLETE_EVT:
+        case ESP_GAP_BLE_ADV_START_COMPLETE_EVT: /*!< When start advertising complete, the event comes */
+            ESP_LOGI(MY_LOG, "Case ESP_GAP_BLE_ADV_START_COMPLETE_EVT reached");
             // is it running?
             if ((err = param->adv_start_cmpl.status) != ESP_BT_STATUS_SUCCESS) {
                 ESP_LOGE(LOG_TAG, "advertising start failed: %s", esp_err_to_name(err));
@@ -277,14 +282,18 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             }
             break;
 
-        case ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT:
+        case ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT: /*!< When stop adv complete, the event comes */
+            ESP_LOGI(MY_LOG, "Case ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT reached");
             if ((err = param->adv_stop_cmpl.status) != ESP_BT_STATUS_SUCCESS){
                 ESP_LOGE(LOG_TAG, "adv stop failed: %s", esp_err_to_name(err));
             }
             else {
-                // ESP_LOGI(LOG_TAG, "advertising stopped");
+                ESP_LOGI(LOG_TAG, "advertising stopped");
             }
             break;
+        // Scan related
+
+
         default:
             break;
     }
@@ -338,6 +347,8 @@ void copy_2b_big_endian(uint8_t *dst, uint8_t *src) {
 // Only works up to 8 bits per advert
 // [2 byte magic] [4 byte modem_id] [2 byte tweak] [4 byte message id] [16 byte payload]
 void set_addr_and_payload_for_byte(uint32_t index, uint32_t msg_id, uint8_t val, uint32_t chunk_len) {
+    ESP_LOGI(MY_LOG, "Calling set_addr_and_payload_for_byte");
+    
     uint16_t valid_key_counter = 0;
     static uint8_t public_key[28] = {0};
     public_key[0] = 0xBA; // magic value
@@ -390,16 +401,28 @@ void set_addr_and_payload_for_byte(uint32_t index, uint32_t msg_id, uint8_t val,
 
 
 void reset_advertising() {
+    ESP_LOGI(MY_LOG, "Calling reset_advertising");
+
     esp_err_t status;
+    ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_stop_advertising");
     esp_ble_gap_stop_advertising();
+    ESP_LOGI(MY_LOG, "After calling esp_ble_gap_stop_advertising");
+
+
+    ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_set_rand_addr");
     if ((status = esp_ble_gap_set_rand_addr(rnd_addr)) != ESP_OK) {
         ESP_LOGE(LOG_TAG, "couldn't set random address: %s", esp_err_to_name(status));
         return;
     }
+    ESP_LOGI(MY_LOG, "After calling esp_ble_gap_set_rand_addr");
+
+    ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_config_adv_data_raw");
     if ((esp_ble_gap_config_adv_data_raw((uint8_t*)&adv_data, sizeof(adv_data))) != ESP_OK) {
         ESP_LOGE(LOG_TAG, "couldn't configure BLE adv: %s", esp_err_to_name(status));
         return;
     }
+    ESP_LOGI(MY_LOG, "After calling esp_ble_gap_config_adv_data_raw");
+
 }
 
 void generateAlphaSequence(int sequenceNumber, uint8_t *data_to_send) {
@@ -422,6 +445,8 @@ void generateAlphaSequence(int sequenceNumber, uint8_t *data_to_send) {
 
 
 void send_data_once_blocking(uint8_t* data_to_send, uint32_t len, uint32_t chunk_len, uint32_t msg_id) {
+    ESP_LOGI(MY_LOG, "Calling send_data_once_blocking");
+
     uint32_t num_chunks = len * 8 / chunk_len;
     if (len * 8 % chunk_len) {
         num_chunks++;
@@ -459,6 +484,8 @@ void send_data_once_blocking(uint8_t* data_to_send, uint32_t len, uint32_t chunk
         log_current_unix_time();
         ESP_LOGD(LOG_TAG, "    resetting. Will now use device address: %02x %02x %02x %02x %02x %02x", rnd_addr[0], rnd_addr[1], rnd_addr[2], rnd_addr[3], rnd_addr[4], rnd_addr[5]);
         reset_advertising();
+        ESP_LOGI(MY_LOG, "after reset_advertising called");
+
         vTaskDelay(100);    
     }
     esp_ble_gap_stop_advertising();
@@ -510,6 +537,8 @@ void app_main(void)
         ESP_LOGE(LOG_TAG, "gap register error: %s", esp_err_to_name(status));
         return;
     }
+    ESP_LOGI(LOG_TAG, "Callback initialized");
+
 
     // // Sync time
     // initialize_sntp();
