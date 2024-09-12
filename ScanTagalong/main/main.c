@@ -39,6 +39,24 @@
 
 #define BUF_SIZE (1024)
 
+// Scan related
+#define MAX_UNIQUE_MACS 100
+#define MIN_PACKET_COUNT 0
+#define SCAN_TIME 10
+static int applePacketCount = 0;
+
+static esp_bd_addr_t unique_macs_09[MAX_UNIQUE_MACS];
+static esp_bd_addr_t unique_macs_10[MAX_UNIQUE_MACS];
+static esp_bd_addr_t unique_macs_16[MAX_UNIQUE_MACS];
+
+static int unique_macs_09_packet_count[MAX_UNIQUE_MACS] = {0};
+static int unique_macs_10_packet_count[MAX_UNIQUE_MACS] = {0};
+static int unique_macs_16_packet_count[MAX_UNIQUE_MACS] = {0};
+
+static int unique_macs_09_count = 0;
+static int unique_macs_10_count = 0;
+static int unique_macs_16_count = 0;
+
 // For WIFI
 // #define EXAMPLE_ESP_WIFI_SSID      CONFIG_ESP_WIFI_SSID
 // #define EXAMPLE_ESP_WIFI_PASS      CONFIG_ESP_WIFI_PASSWORD
@@ -258,6 +276,14 @@ static esp_ble_adv_params_t ble_adv_params = {
     .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
 };
 
+static esp_ble_scan_params_t ble_scan_params = {
+    .scan_type              = BLE_SCAN_TYPE_ACTIVE,
+    .own_addr_type          = BLE_ADDR_TYPE_PUBLIC,
+    .scan_filter_policy     = BLE_SCAN_FILTER_ALLOW_ALL,
+    .scan_interval          = 0x50,
+    .scan_window            = 0x30
+};// param definitions: https://github.com/pycom/esp-idf-2.0/blob/master/components/bt/bluedroid/api/include/esp_gap_ble_api.h#L203
+
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
     esp_err_t err;
@@ -292,7 +318,165 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             }
             break;
         // Scan related
+        case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {
+            // printf("K: ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT called\n");
+            if (param->scan_param_cmpl.status == ESP_BT_STATUS_SUCCESS) {
+                printf("Scan parameters set, start scanning for %d seconds...\n", SCAN_TIME);
+                esp_ble_gap_start_scanning(SCAN_TIME); 
+            } else {
+                printf("Unable to set scan parameters, error code %d\n", param->scan_param_cmpl.status);
+            }
+            break;
+        }
+        case ESP_GAP_BLE_SCAN_START_COMPLETE_EVT: {
+            printf("K: ESP_GAP_BLE_SCAN_START_COMPLETE_EVT called\n");
+            if (param->scan_start_cmpl.status != ESP_BT_STATUS_SUCCESS) {
+                printf("Scan start failed, error code %d\n", param->scan_start_cmpl.status);
+            }
+            break;
+        }
+        case ESP_GAP_BLE_SCAN_RESULT_EVT: {
+            // printf("K: ESP_GAP_BLE_SCAN_RESULT_EVT called\n");
+            esp_ble_gap_cb_param_t *scan_result = param;
 
+            esp_bd_addr_t bd_addr; // K: Stores the mac address of the BLE device
+            memcpy(bd_addr, scan_result->scan_rst.bda, sizeof(bd_addr));
+
+            esp_bt_dev_type_t dev_type = scan_result->scan_rst.dev_type ; // Flag for device capability
+
+            esp_ble_addr_type_t add_type = scan_result->scan_rst.ble_addr_type;
+
+            esp_ble_evt_type_t event_type = scan_result->scan_rst.ble_evt_type;            
+
+            
+            if (scan_result->scan_rst.search_evt == ESP_GAP_SEARCH_INQ_RES_EVT) { // K: Indicates that an advertisement packet received
+                uint8_t *adv_data = scan_result->scan_rst.ble_adv;
+                uint8_t adv_data_len = scan_result->scan_rst.adv_data_len;
+                // k debug
+                // printf("K: Contents of adv_data: ");
+                // for (int i = 0; i < adv_data_len; i++){
+                //     printf("%02X", adv_data[i]);
+                // }
+                // printf("\n");
+
+                // Variables to store data
+                uint8_t flag_data[adv_data_len];
+                uint8_t manufacturer_data[adv_data_len];
+                int flag_data_length = 0;
+                int manufacturer_data_length = 0;
+
+                // Parse through the advertisement data to find the manufacturer-specific data
+                for (int i = 0; i < adv_data_len;) {
+                    uint8_t len = adv_data[i];
+                    uint8_t type = adv_data[i + 1];
+                    // printf("K: i value is %d, len is 0x%02X, type is 0x%02x\n", i, len, type);
+
+                    if (type == ESP_BLE_AD_MANUFACTURER_SPECIFIC_TYPE && len >= 3) {
+                        // printf("K: ESP_BLE_AD_MANUFACTURER_SPECIFIC_TYPE reached \n");
+                        // Check if the length is at least the minimum required for the manufacturer-specific data
+                        uint16_t company_id = (adv_data[i + 3] << 8) | adv_data[i + 2];
+
+                        if (company_id == 0x004C) { // Check for Apple device
+                            // Store manufacturer-specific data
+                            memcpy(manufacturer_data, adv_data + i, len + 1);
+                            manufacturer_data_length = len + 1;
+                        }                        
+
+                    }
+                    else if (type == ESP_BLE_AD_TYPE_FLAG) {
+                        // Print the flag data
+                        // printf("K: ESP_BLE_AD_TYPE_FLAG reached \n");
+                        memcpy(flag_data, adv_data + i, len + 1);
+                        flag_data_length = len + 1;
+                    }
+                    i += len + 1;
+                }
+
+                if (manufacturer_data_length > 0) {
+                    // 09 Type
+                    if (memcmp(manufacturer_data + 1, "\xFF\x4C\x00\x09", 4) == 0) {
+                        //printData(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
+                        bool is_unique = true;
+                        for (int i = 0; i < unique_macs_09_count; i++) {
+                            if (memcmp(bd_addr, unique_macs_09[i], sizeof(bd_addr)) == 0) {
+                                is_unique = false;
+                                unique_macs_09_packet_count[i] += 1;
+                                break;
+                            }
+                        }
+
+                        if (is_unique) {
+                            // MAC address not found, add it if space available
+                            if (unique_macs_09_count < MAX_UNIQUE_MACS) {
+                                memcpy(unique_macs_09[unique_macs_09_count], bd_addr, sizeof(bd_addr));
+                                unique_macs_09_count++;
+                                unique_macs_09_packet_count[unique_macs_09_count] += 1;
+                            } else {
+                                printf("Maximum number of unique MACs reached.\n");
+                            }
+                        } 
+                    }
+
+                    // // 10 Type
+                    else if (memcmp(manufacturer_data + 1, "\xFF\x4C\x00\x10", 4) == 0) {
+                        //printData(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
+                        bool is_unique = true;
+                        for (int i = 0; i < unique_macs_10_count; i++) {
+                            if (memcmp(bd_addr, unique_macs_10[i], sizeof(bd_addr)) == 0) {
+                                is_unique = false;
+                                unique_macs_10_packet_count[i] += 1;
+                                break;
+                            }
+                        }
+
+                        if (is_unique) {
+                            // MAC address not found, add it if space available
+                            if (unique_macs_10_count < MAX_UNIQUE_MACS) {
+                                memcpy(unique_macs_10[unique_macs_10_count], bd_addr, sizeof(bd_addr));
+                                unique_macs_10_count++;
+                                unique_macs_10_packet_count[unique_macs_10_count] += 1;
+                            } else {
+                                printf("Maximum number of unique MACs reached.\n");
+                            }
+                        }
+                    }
+                    
+
+                    // 16 type
+                    else if (memcmp(manufacturer_data, "\xFF\x4C\x00\x16", 4) == 0) {
+                        //printData(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
+                        bool is_unique = true;
+                        for (int i = 0; i < unique_macs_16_count; i++) {
+                            if (memcmp(bd_addr, unique_macs_16[i], sizeof(bd_addr)) == 0) {
+                                is_unique = false;
+                                unique_macs_16_packet_count[i] += 1;
+                                break;
+                            }
+                        }
+
+                        if (is_unique) {
+                            // MAC address not found, add it if space available
+                            if (unique_macs_16_count < MAX_UNIQUE_MACS) {
+                                memcpy(unique_macs_16[unique_macs_16_count], bd_addr, sizeof(bd_addr));
+                                unique_macs_16_count++;
+                                unique_macs_16_packet_count[unique_macs_16_count] += 1;
+                            } else {
+                                printf("Maximum number of unique MACs reached.\n");
+                            }
+                        }
+                    }
+
+                    applePacketCount++;
+                }
+            }
+            break;
+        }
+        case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT: {
+            printf("K: ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT called\n");
+            printf("Scan stopped\n");
+            printf("Apple BLE packets found: %d\n", applePacketCount);
+            break;
+        }
 
         default:
             break;
@@ -530,16 +714,19 @@ void app_main(void)
     // ESP_LOGI(WIFI_TAG, "ESP_WIFI_MODE_STA");
     // wifi_init_sta();
 
-    // My: This part originally commented out not sure why. I uncommented it
-    esp_err_t status;
-    //register the scan callback function to the gap module
-    if ((status = esp_ble_gap_register_callback(esp_gap_cb)) != ESP_OK) {
-        ESP_LOGE(LOG_TAG, "gap register error: %s", esp_err_to_name(status));
+    if ((ret = esp_ble_gap_register_callback(esp_gap_cb)) != ESP_OK) {
+        ESP_LOGE(LOG_TAG, "gap register error: %s", esp_err_to_name(ret));
         return;
     }
     ESP_LOGI(LOG_TAG, "Callback initialized");
 
-
+    ret = esp_ble_gap_set_scan_params(&ble_scan_params); // Set scan param which will also trigger the scanning
+    if (ret != ESP_OK) {
+        printf("Set scan parameters failed\n");
+        return;
+    }
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    esp_ble_gap_stop_scanning(); // let the scanning occur for 2s then stop
     // // Sync time
     // initialize_sntp();
     // wait_for_sntp_sync();
@@ -556,6 +743,15 @@ void app_main(void)
     }
     printf("\n");
 
+    // If no unique mac detected during initial scanning, then just wait and repeat scan again
+    while (unique_macs_09_count == 0 && unique_macs_10_count == 0 && unique_macs_16_count == 0) {
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        printf("No mules found, wait for 5s then scan again");
+        esp_ble_gap_start_scanning(SCAN_TIME); 
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        esp_ble_gap_stop_scanning();
+
+    }
     for (uint32_t i = 0; i < NUM_MESSAGES; i++) {
         // generateAlphaSequence(i, data_to_send);
         for (int j = 0; j < REPEAT_MESSAGE_TIMES; j++) {
