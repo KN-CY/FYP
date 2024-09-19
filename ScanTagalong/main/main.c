@@ -303,11 +303,11 @@ static esp_ble_adv_params_t ble_adv_params = {
 };
 
 static esp_ble_scan_params_t ble_scan_params = {
-    .scan_type              = BLE_SCAN_TYPE_ACTIVE,
+    .scan_type              = BLE_SCAN_TYPE_ACTIVE, // originally  BLE_SCAN_TYPE_ACTIVE
     .own_addr_type          = BLE_ADDR_TYPE_PUBLIC,
     .scan_filter_policy     = BLE_SCAN_FILTER_ALLOW_ALL,
-    .scan_interval          = 0x50,
-    .scan_window            = 0x30
+    .scan_interval          = 0x30, // 0x40 == 0.04 // 0x640 == 1s scan interval // originally 0x50
+    .scan_window            = 0x30 // 0x30 == 0.030s // 0x20 == 0.020s scan interval // originally 0x30
 };// param definitions: https://github.com/pycom/esp-idf-2.0/blob/master/components/bt/bluedroid/api/include/esp_gap_ble_api.h#L203
 
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
@@ -332,6 +332,9 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             } else {
                 ESP_LOGI(LOG_TAG, "advertising started");
             }
+            // esp_ble_gap_stop_advertising(); // testing out sending just 1 packet
+
+            
             break;
 
         case ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT: /*!< When stop adv complete, the event comes */
@@ -347,8 +350,8 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {
             // printf("K: ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT called\n");
             if (param->scan_param_cmpl.status == ESP_BT_STATUS_SUCCESS) {
-                printf("Scan parameters set, start scanning for %d seconds...\n", SCAN_TIME);
-                esp_ble_gap_start_scanning(SCAN_TIME); 
+                printf("Scan parameters set, start scanning for %d ms...\n", SCAN_TIME);
+                esp_ble_gap_start_scanning(SCAN_TIME/1000); // units in second 
             } else {
                 printf("Unable to set scan parameters, error code %d\n", param->scan_param_cmpl.status);
             }
@@ -769,13 +772,30 @@ void app_main(void)
     }
     ESP_LOGI(LOG_TAG, "Callback initialized");
 
+    vTaskDelay(pdMS_TO_TICKS(3000)); // 3s delay to make energy consumption data collection clearer
+
     ret = esp_ble_gap_set_scan_params(&ble_scan_params); // Set scan param which will also trigger the scanning
     if (ret != ESP_OK) {
         printf("Set scan parameters failed\n");
         return;
     }
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    esp_ble_gap_stop_scanning(); // let the scanning occur for 2s then stop
+    vTaskDelay(pdMS_TO_TICKS(SCAN_TIME)); // wait while the scan occurs
+    // esp_ble_gap_stop_scanning(); // let the scanning occur for 2s then stop. not really required since we alr specified to scan for 2s
+    vTaskDelay(pdMS_TO_TICKS(3000)); // 3s delay to make energyconsumption data collection clearer
+
+
+    // If no unique mac detected during initial scanning, then just wait and repeat scan again
+    while (unique_macs_09_count == 0 && unique_macs_10_count == 0 && unique_macs_16_count == 0) {
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        printf("No mules found, wait for 5s then scan again\n");
+        esp_ble_gap_start_scanning(SCAN_TIME/1000); 
+        vTaskDelay(pdMS_TO_TICKS(SCAN_TIME)); // wait while scanning
+        // esp_ble_gap_stop_scanning(); // scan will auto stop after the specified time
+    }
+    printf("unique_mac count is %d, %d, %d\n", unique_macs_09_count, unique_macs_10_count, unique_macs_16_count);
+    printf("Number of MAC is %d, Number of iPhone is %d\n", unique_macs_09_count, unique_macs_10_count - 2 * unique_macs_09_count > 0 ? unique_macs_10_count - 2 * unique_macs_09_count : 0 );
+
+
     // // Sync time
     // initialize_sntp();
     // wait_for_sntp_sync();
@@ -792,15 +812,8 @@ void app_main(void)
     }
     printf("\n");
 
-    // If no unique mac detected during initial scanning, then just wait and repeat scan again
-    while (unique_macs_09_count == 0 && unique_macs_10_count == 0 && unique_macs_16_count == 0) {
-        vTaskDelay(pdMS_TO_TICKS(5000));
-        printf("No mules found, wait for 5s then scan again");
-        esp_ble_gap_start_scanning(SCAN_TIME); 
-        vTaskDelay(pdMS_TO_TICKS(2000));
-        esp_ble_gap_stop_scanning();
 
-    }
+    
     for (uint32_t i = 0; i < NUM_MESSAGES; i++) {
         // generateAlphaSequence(i, data_to_send);
         for (int j = 0; j < REPEAT_MESSAGE_TIMES; j++) {
