@@ -213,6 +213,29 @@ void log_current_unix_time() {
 
     ESP_LOGI("TIMESTAMP", "Unix: %ld", (long) current_time);
 }
+static void print_manufacturer_data(esp_bd_addr_t bd_addr, int manufacturer_data_length, uint8_t* manufacturer_data, int flag_data_length, uint8_t* flag_data) {
+    printf("MAC Address: ");
+    for (int i = 0; i < ESP_BD_ADDR_LEN; i++) {
+        printf("%02X:", bd_addr[i]);
+    }
+    printf(" | ");
+    printf("Manufacturer data: ");
+    for (int i = 0; i < manufacturer_data_length; i++) {
+        printf("%02X ", manufacturer_data[i]);
+    }
+
+    printf(" | ");
+    if (flag_data_length > 0) { 
+        printf("Flag data: ");
+        for (int i = 0; i < flag_data_length; i++) {
+            printf("%02X ", flag_data[i]);
+        }
+    } else {
+        printf("No Flag");
+    }
+
+    printf("\n");
+}
 
 
 // Set custom modem id before flashing:
@@ -356,11 +379,11 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                 uint8_t *adv_data = scan_result->scan_rst.ble_adv;
                 uint8_t adv_data_len = scan_result->scan_rst.adv_data_len;
                 // k debug
-                // printf("K: Contents of adv_data: ");
-                // for (int i = 0; i < adv_data_len; i++){
-                //     printf("%02X", adv_data[i]);
-                // }
-                // printf("\n");
+                printf("K: Contents of adv_data: ");
+                for (int i = 0; i < adv_data_len; i++){
+                    printf("%02X", adv_data[i]);
+                }
+                printf("\n");
 
                 // Variables to store data
                 uint8_t flag_data[adv_data_len];
@@ -372,7 +395,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                 for (int i = 0; i < adv_data_len;) {
                     uint8_t len = adv_data[i];
                     uint8_t type = adv_data[i + 1];
-                    // printf("K: i value is %d, len is 0x%02X, type is 0x%02x\n", i, len, type);
+                    printf("K: i value is %d, len is 0x%02X, type is 0x%02x\n", i, len, type);
 
                     if (type == ESP_BLE_AD_MANUFACTURER_SPECIFIC_TYPE && len >= 3) {
                         // printf("K: ESP_BLE_AD_MANUFACTURER_SPECIFIC_TYPE reached \n");
@@ -396,9 +419,10 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                 }
 
                 if (manufacturer_data_length > 0) {
+                    printf("K: Apple BLE packet found\n");
                     // 09 Type
                     if (memcmp(manufacturer_data + 1, "\xFF\x4C\x00\x09", 4) == 0) {
-                        //printData(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
+                        print_manufacturer_data(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
                         bool is_unique = true;
                         for (int i = 0; i < unique_macs_09_count; i++) {
                             if (memcmp(bd_addr, unique_macs_09[i], sizeof(bd_addr)) == 0) {
@@ -422,7 +446,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 
                     // // 10 Type
                     else if (memcmp(manufacturer_data + 1, "\xFF\x4C\x00\x10", 4) == 0) {
-                        //printData(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
+                        print_manufacturer_data(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
                         bool is_unique = true;
                         for (int i = 0; i < unique_macs_10_count; i++) {
                             if (memcmp(bd_addr, unique_macs_10[i], sizeof(bd_addr)) == 0) {
@@ -447,7 +471,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 
                     // 16 type
                     else if (memcmp(manufacturer_data, "\xFF\x4C\x00\x16", 4) == 0) {
-                        //printData(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
+                        print_manufacturer_data(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
                         bool is_unique = true;
                         for (int i = 0; i < unique_macs_16_count; i++) {
                             if (memcmp(bd_addr, unique_macs_16[i], sizeof(bd_addr)) == 0) {
