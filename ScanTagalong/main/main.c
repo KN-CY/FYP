@@ -39,10 +39,13 @@
 
 #define BUF_SIZE (1024)
 
+// Advertsising related
+#define INTERVAL_TIME 0x0020 // units of 0.625ms. 0x20 * 0.625ms = 20ms, Apple's recommendation
+
 // Scan related
 #define MAX_UNIQUE_MACS 100
 #define MIN_PACKET_COUNT 0
-#define SCAN_TIME 10
+#define SCAN_TIME 1000 // in ms
 static int applePacketCount = 0;
 
 static esp_bd_addr_t unique_macs_09[MAX_UNIQUE_MACS];
@@ -260,12 +263,12 @@ static esp_ble_adv_params_t ble_adv_params = {
     // Minimum advertising interval for undirected and low duty cycle
     // directed advertising. Range: 0x0020 to 0x4000 Default: N = 0x0800
     // (1.28 second) Time = N * 0.625 msec Time Range: 20 ms to 10.24 sec
-    .adv_int_min        = 0x0640, 
+    .adv_int_min        = INTERVAL_TIME, 
     // Advertising max interval:
     // Maximum advertising interval for undirected and low duty cycle
     // directed advertising. Range: 0x0020 to 0x4000 Default: N = 0x0800
     // (1.28 second) Time = N * 0.625 msec Time Range: 20 ms to 10.24 sec
-    .adv_int_max        = 0x0C80, 
+    .adv_int_max        = INTERVAL_TIME, 
     // Advertisement type
     .adv_type           = ADV_TYPE_NONCONN_IND,
     // Use the random address
