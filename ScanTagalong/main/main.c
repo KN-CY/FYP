@@ -610,31 +610,52 @@ void set_addr_and_payload_for_byte(uint32_t index, uint32_t msg_id, uint8_t val,
     set_payload_from_key(adv_data, public_key);
 }
 
+// Todo: modify it to start advertisement
 
-void reset_advertising() {
-    ESP_LOGI(MY_LOG, "Calling reset_advertising");
-
+void advertising_cycle(uint32_t send_time) {
     esp_err_t status;
-    ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_stop_advertising");
-    esp_ble_gap_stop_advertising();
-    ESP_LOGI(MY_LOG, "After calling esp_ble_gap_stop_advertising");
 
-
-    ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_set_rand_addr");
     if ((status = esp_ble_gap_set_rand_addr(rnd_addr)) != ESP_OK) {
         ESP_LOGE(LOG_TAG, "couldn't set random address: %s", esp_err_to_name(status));
         return;
     }
-    ESP_LOGI(MY_LOG, "After calling esp_ble_gap_set_rand_addr");
 
     ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_config_adv_data_raw");
-    if ((esp_ble_gap_config_adv_data_raw((uint8_t*)&adv_data, sizeof(adv_data))) != ESP_OK) {
+    if ((esp_ble_gap_config_adv_data_raw((uint8_t*)&adv_data, sizeof(adv_data))) != ESP_OK) { // Triggers SET_COMPLETE callback
         ESP_LOGE(LOG_TAG, "couldn't configure BLE adv: %s", esp_err_to_name(status));
         return;
     }
     ESP_LOGI(MY_LOG, "After calling esp_ble_gap_config_adv_data_raw");
+    
+    vTaskDelay(pdMS_TO_TICKS(INTERVAL_TIME * 5));
+    esp_ble_gap_stop_advertising();
+
 
 }
+// void reset_advertising() {
+//     ESP_LOGI(MY_LOG, "Calling reset_advertising");
+
+//     esp_err_t status;
+//     ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_stop_advertising");
+//     esp_ble_gap_stop_advertising();
+//     ESP_LOGI(MY_LOG, "After calling esp_ble_gap_stop_advertising");
+
+
+//     ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_set_rand_addr");
+//     if ((status = esp_ble_gap_set_rand_addr(rnd_addr)) != ESP_OK) {
+//         ESP_LOGE(LOG_TAG, "couldn't set random address: %s", esp_err_to_name(status));
+//         return;
+//     }
+//     ESP_LOGI(MY_LOG, "After calling esp_ble_gap_set_rand_addr");
+
+//     ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_config_adv_data_raw");
+//     if ((esp_ble_gap_config_adv_data_raw((uint8_t*)&adv_data, sizeof(adv_data))) != ESP_OK) {
+//         ESP_LOGE(LOG_TAG, "couldn't configure BLE adv: %s", esp_err_to_name(status));
+//         return;
+//     }
+//     ESP_LOGI(MY_LOG, "After calling esp_ble_gap_config_adv_data_raw");
+
+// }
 
 void generateAlphaSequence(int sequenceNumber, uint8_t *data_to_send) {
     if (sequenceNumber < 0 || data_to_send == NULL) {
@@ -693,20 +714,21 @@ void send_data_once_blocking(uint8_t* data_to_send, uint32_t len, uint32_t chunk
 
         set_addr_and_payload_for_byte(chunk_i, msg_id, chunk_value, chunk_len);
         log_current_unix_time();
-        ESP_LOGD(LOG_TAG, "    resetting. Will now use device address: %02x %02x %02x %02x %02x %02x", rnd_addr[0], rnd_addr[1], rnd_addr[2], rnd_addr[3], rnd_addr[4], rnd_addr[5]);
-        reset_advertising();
-        ESP_LOGI(MY_LOG, "after reset_advertising called");
+        ESP_LOGD(LOG_TAG, "    Starting advertising cycle. Will now use device address: %02x %02x %02x %02x %02x %02x", rnd_addr[0], rnd_addr[1], rnd_addr[2], rnd_addr[3], rnd_addr[4], rnd_addr[5]);
+        advertising_cycle(INTERVAL_TIME);
+        ESP_LOGI(MY_LOG, "after advertising_cycle called");
 
-        vTaskDelay(100);    
     }
     esp_ble_gap_stop_advertising();
 }
 
 void app_main(void)
 {
+    // vTaskDelay(pdMS_TO_TICKS(3000)); // 3s delay to make energy consumption data collection clearer
+
     const int NUM_MESSAGES = 1;
-    const int REPEAT_MESSAGE_TIMES = 3;
-    const int MESSAGE_DELAY = 50;
+    const int REPEAT_MESSAGE_TIMES = 1;
+    const int MESSAGE_DELAY = 0;
 
 
     // Init Flash and BT
