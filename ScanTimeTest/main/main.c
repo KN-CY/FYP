@@ -39,8 +39,6 @@
 
 #define BUF_SIZE (1024)
 
-// Advertsising related
-#define INTERVAL_TIME 0x0020 // units of 0.625ms. 0x20 * 0.625ms = 20ms, Apple's recommendation
 
 // Scan related
 #define MAX_UNIQUE_MACS 100
@@ -104,16 +102,27 @@ static void print_unique_mac() {
         printf("\n");
     }
    
-    printf("There are %d unique MAC for 0x16: \n", unique_macs_16_count);
-    for (int i = 0; i < unique_macs_16_count; i++) {
-        for (int j = 0; j < ESP_BD_ADDR_LEN; j++) {
-            printf("%02X:", unique_macs_16[i][j]);
-        }
-        printf("\n");
-    }
+    // printf("There are %d unique MAC for 0x16: \n", unique_macs_16_count);
+    // for (int i = 0; i < unique_macs_16_count; i++) {
+    //     for (int j = 0; j < ESP_BD_ADDR_LEN; j++) {
+    //         printf("%02X:", unique_macs_16[i][j]);
+    //     }
+    //     printf("\n");
+    // }
 
 }
 
+int compare_mac(const void *a, const void *b) {
+    const unsigned char *mac1 = (const unsigned char *)a;
+    const unsigned char *mac2 = (const unsigned char *)b;
+
+    return memcmp(mac1, mac2, ESP_BD_ADDR_LEN);
+}
+static void sort_mac() {
+        qsort(unique_macs_09, unique_macs_09_count, ESP_BD_ADDR_LEN, compare_mac);
+        qsort(unique_macs_10, unique_macs_10_count, ESP_BD_ADDR_LEN, compare_mac);
+        qsort(unique_macs_16, unique_macs_16_count, ESP_BD_ADDR_LEN, compare_mac);
+}
 
 
 /** Callback function for BT events */
@@ -338,6 +347,7 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     
+  
     esp_err_t ret;
     ret = esp_bt_controller_init(&bt_cfg);
     if (ret != ESP_OK) {
@@ -374,12 +384,13 @@ void app_main(void)
         printf("Set scan parameters failed\n");
         return;
     }
-    vTaskDelay(pdMS_TO_TICKS(SCAN_TIME*2)); // wait while the scan occurs
+    vTaskDelay(pdMS_TO_TICKS(SCAN_TIME + 1)); // wait while the scan occurs + 1 to ensure that printing of all the advertisement data is done from the callback
     
 
     printf("\n\nunique_mac count is %d, %d, %d\n", unique_macs_09_count, unique_macs_10_count, unique_macs_16_count);
-    printf("Number of MAC is %d, Number of iPhone is %d\n", unique_macs_09_count, unique_macs_10_count - 2 * unique_macs_09_count > 0 ? unique_macs_10_count - 2 * unique_macs_09_count : 0 );
+    printf("Estimated number of MAC device is %d, Number of iPhone is %d\n", unique_macs_09_count, unique_macs_10_count - 2 * unique_macs_09_count > 0 ? unique_macs_10_count - 2 * unique_macs_09_count : 0 );
 
+    sort_mac();
     print_unique_mac();
 
    
