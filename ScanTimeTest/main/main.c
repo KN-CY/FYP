@@ -133,8 +133,8 @@ static esp_ble_scan_params_t ble_scan_params = {
     .scan_type              = BLE_SCAN_TYPE_ACTIVE, // originally  BLE_SCAN_TYPE_ACTIVE
     .own_addr_type          = BLE_ADDR_TYPE_PUBLIC,
     .scan_filter_policy     = BLE_SCAN_FILTER_ALLOW_ALL,
-    .scan_interval          = 0x30, // 0x40 == 0.04 // 0x640 == 1s scan interval // originally 0x50
-    .scan_window            = 0x30 // 0x30 == 0.030s // 0x20 == 0.020s scan interval // originally 0x30
+    .scan_interval          = 0x4000, // 0x4000 > 10s // 0x1e0, //0x30, // 0x40 == 0.04 // 0x640 == 1s scan interval // originally 0x50
+    .scan_window            = 0x4000 // 0x1e0 //0x30 // 0x30 == 0.030s // 0x20 == 0.020s scan interval // originally 0x30
 };// param definitions: https://github.com/pycom/esp-idf-2.0/blob/master/components/bt/bluedroid/api/include/esp_gap_ble_api.h#L203
 
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
