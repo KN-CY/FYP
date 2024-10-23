@@ -39,11 +39,25 @@
 
 #define BUF_SIZE (1024)
 
+static const char* LOG_TAG = "findmy_modem";
+static const char* MY_LOG = "My debug:";
+
 // Advertsising related
 #define INTERVAL_TIME 0x0020 // units of 0.625ms. 0x20 * 0.625ms = 20ms, Apple's recommendation
+#define SEND_TIME 1000 // Used for the TaskDelay so this units is in ms
+
+// Set custom modem id before flashing:
+// static const uint32_t modem_id = 0x67364600;
+static uint32_t modem_id = 0x6836464a;
+
+static uint8_t data_to_send[] = {0x21, 0x00}; // end with 0x00 
+const int NUM_MESSAGES = 50;
+const int REPEAT_MESSAGE_TIMES = 1;
+const int MESSAGE_DELAY = 120000;
+
 
 // Scan related
-#define MAX_UNIQUE_MACS 100
+#define MAX_UNIQUE_MACS 1000
 #define MIN_PACKET_COUNT 0
 #define SCAN_TIME 1000 // in ms
 static int applePacketCount = 0;
@@ -59,6 +73,8 @@ static int unique_macs_16_packet_count[MAX_UNIQUE_MACS] = {0};
 static int unique_macs_09_count = 0;
 static int unique_macs_10_count = 0;
 static int unique_macs_16_count = 0;
+
+SemaphoreHandle_t semaphore; // For main to know when to resume
 
 // For WIFI
 // #define EXAMPLE_ESP_WIFI_SSID      CONFIG_ESP_WIFI_SSID
@@ -238,11 +254,7 @@ static void print_manufacturer_data(esp_bd_addr_t bd_addr, int manufacturer_data
 }
 
 
-// Set custom modem id before flashing:
-static const uint32_t modem_id = 0x556677bb;
 
-static const char* LOG_TAG = "findmy_modem";
-static const char* MY_LOG = "My debug:";
 
 
 /** Callback function for BT events */
@@ -318,9 +330,9 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         // Advertising related
         case ESP_GAP_BLE_ADV_DATA_RAW_SET_COMPLETE_EVT: /*!< When raw advertising data set complete, the event comes */
             ESP_LOGI(MY_LOG, "Case ESP_GAP_BLE_ADV_DATA_RAW_SET_COMPLETE_EVT reached");
-            ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_start_advertising");
+            // ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_start_advertising");
             esp_ble_gap_start_advertising(&ble_adv_params);
-            ESP_LOGI(MY_LOG, "After calling esp_ble_gap_start_advertising");
+            // ESP_LOGI(MY_LOG, "After calling esp_ble_gap_start_advertising");
 
             break;
 
@@ -331,7 +343,11 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                 ESP_LOGE(LOG_TAG, "advertising start failed: %s", esp_err_to_name(err));
             } else {
                 ESP_LOGI(LOG_TAG, "advertising started");
+                vTaskDelay(pdMS_TO_TICKS(SEND_TIME));
+                // printf("pdMS_TO_TICKS(SEND_TIME*10) is %ld\n", pdMS_TO_TICKS(SEND_TIME*10));
+                esp_ble_gap_stop_advertising();
             }
+
             // esp_ble_gap_stop_advertising(); // testing out sending just 1 packet
 
             
@@ -344,6 +360,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             }
             else {
                 ESP_LOGI(LOG_TAG, "advertising stopped");
+                xSemaphoreGive(semaphore);
             }
             break;
         // Scan related
@@ -382,11 +399,11 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                 uint8_t *adv_data = scan_result->scan_rst.ble_adv;
                 uint8_t adv_data_len = scan_result->scan_rst.adv_data_len;
                 // k debug
-                printf("K: Contents of adv_data: ");
-                for (int i = 0; i < adv_data_len; i++){
-                    printf("%02X", adv_data[i]);
-                }
-                printf("\n");
+                // printf("K: Contents of adv_data: ");
+                // for (int i = 0; i < adv_data_len; i++){
+                //     printf("%02X", adv_data[i]);
+                // }
+                // printf("\n");
 
                 // Variables to store data
                 uint8_t flag_data[adv_data_len];
@@ -398,7 +415,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                 for (int i = 0; i < adv_data_len;) {
                     uint8_t len = adv_data[i];
                     uint8_t type = adv_data[i + 1];
-                    printf("K: i value is %d, len is 0x%02X, type is 0x%02x\n", i, len, type);
+                    // printf("K: i value is %d, len is 0x%02X, type is 0x%02x\n", i, len, type);
 
                     if (type == ESP_BLE_AD_MANUFACTURER_SPECIFIC_TYPE && len >= 3) {
                         // printf("K: ESP_BLE_AD_MANUFACTURER_SPECIFIC_TYPE reached \n");
@@ -407,6 +424,11 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 
                         if (company_id == 0x004C) { // Check for Apple device
                             // Store manufacturer-specific data
+                            // printf("K: Contents of adv_data: ");
+                            // for (int i = 0; i < adv_data_len; i++){
+                            //     printf("%02X", adv_data[i]);
+                            // }
+                            // printf("\n");
                             memcpy(manufacturer_data, adv_data + i, len + 1);
                             manufacturer_data_length = len + 1;
                         }                        
@@ -422,10 +444,10 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                 }
 
                 if (manufacturer_data_length > 0) {
-                    printf("K: Apple BLE packet found\n");
+                    // printf("K: Apple BLE packet found\n");
                     // 09 Type
                     if (memcmp(manufacturer_data + 1, "\xFF\x4C\x00\x09", 4) == 0) {
-                        print_manufacturer_data(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
+                        // print_manufacturer_data(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
                         bool is_unique = true;
                         for (int i = 0; i < unique_macs_09_count; i++) {
                             if (memcmp(bd_addr, unique_macs_09[i], sizeof(bd_addr)) == 0) {
@@ -449,7 +471,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 
                     // // 10 Type
                     else if (memcmp(manufacturer_data + 1, "\xFF\x4C\x00\x10", 4) == 0) {
-                        print_manufacturer_data(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
+                        // print_manufacturer_data(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
                         bool is_unique = true;
                         for (int i = 0; i < unique_macs_10_count; i++) {
                             if (memcmp(bd_addr, unique_macs_10[i], sizeof(bd_addr)) == 0) {
@@ -615,7 +637,7 @@ void set_addr_and_payload_for_byte(uint32_t index, uint32_t msg_id, uint8_t val,
 
 // Todo: modify it to start advertisement
 
-void advertising_cycle(uint32_t send_time) {
+void advertising_cycle() {
     esp_err_t status;
 
     if ((status = esp_ble_gap_set_rand_addr(rnd_addr)) != ESP_OK) {
@@ -629,9 +651,10 @@ void advertising_cycle(uint32_t send_time) {
         return;
     }
     ESP_LOGI(MY_LOG, "After calling esp_ble_gap_config_adv_data_raw");
-    
-    vTaskDelay(pdMS_TO_TICKS(INTERVAL_TIME * 5));
-    esp_ble_gap_stop_advertising();
+    xSemaphoreTake(semaphore, portMAX_DELAY); 
+    ESP_LOGI(MY_LOG, "Ad cycle end");
+
+
 
 
 }
@@ -660,22 +683,22 @@ void advertising_cycle(uint32_t send_time) {
 
 // }
 
-void generateAlphaSequence(int sequenceNumber, uint8_t *data_to_send) {
-    if (sequenceNumber < 0 || data_to_send == NULL) {
-        printf("Invalid input or output array\n");
-        return;
-    }
-    int base = 'A';
-    int numChars = 26;
-    int firstChar = base + (sequenceNumber / numChars);
-    int secondChar = base + (sequenceNumber % numChars);
-    if (secondChar > 'Z') {
-        secondChar = base + (secondChar % numChars);
-        firstChar++;
-    }
-    data_to_send[0] = (uint8_t)firstChar;
-    data_to_send[1] = (uint8_t)secondChar;
-}
+// void generateAlphaSequence(int sequenceNumber, uint8_t *data_to_send) {
+//     if (sequenceNumber < 0 || data_to_send == NULL) {
+//         printf("Invalid input or output array\n");
+//         return;
+//     }
+//     int base = 'A';
+//     int numChars = 26;
+//     int firstChar = base + (sequenceNumber / numChars);
+//     int secondChar = base + (sequenceNumber % numChars);
+//     if (secondChar > 'Z') {
+//         secondChar = base + (secondChar % numChars);
+//         firstChar++;
+//     }
+//     data_to_send[0] = (uint8_t)firstChar;
+//     data_to_send[1] = (uint8_t)secondChar;
+// }
 
 
 
@@ -718,21 +741,15 @@ void send_data_once_blocking(uint8_t* data_to_send, uint32_t len, uint32_t chunk
         set_addr_and_payload_for_byte(chunk_i, msg_id, chunk_value, chunk_len);
         log_current_unix_time();
         ESP_LOGD(LOG_TAG, "    Starting advertising cycle. Will now use device address: %02x %02x %02x %02x %02x %02x", rnd_addr[0], rnd_addr[1], rnd_addr[2], rnd_addr[3], rnd_addr[4], rnd_addr[5]);
-        advertising_cycle(INTERVAL_TIME);
+        advertising_cycle();
         ESP_LOGI(MY_LOG, "after advertising_cycle called");
 
     }
-    esp_ble_gap_stop_advertising();
 }
 
 void app_main(void)
 {
     // vTaskDelay(pdMS_TO_TICKS(3000)); // 3s delay to make energy consumption data collection clearer
-
-    const int NUM_MESSAGES = 1;
-    const int REPEAT_MESSAGE_TIMES = 1;
-    const int MESSAGE_DELAY = 0;
-
 
     // Init Flash and BT
     ESP_ERROR_CHECK(nvs_flash_init());
@@ -762,6 +779,7 @@ void app_main(void)
         return;
     }
     
+    semaphore = xSemaphoreCreateBinary(); // starts empty. Need to give before it can take
     // Init WIFI
     // ESP_LOGI(WIFI_TAG, "ESP_WIFI_MODE_STA");
     // wifi_init_sta();
@@ -772,7 +790,7 @@ void app_main(void)
     }
     ESP_LOGI(LOG_TAG, "Callback initialized");
 
-    vTaskDelay(pdMS_TO_TICKS(3000)); // 3s delay to make energy consumption data collection clearer
+    //vTaskDelay(pdMS_TO_TICKS(2000)); // 2s delay to make energy consumption data collection clearer
 
     ret = esp_ble_gap_set_scan_params(&ble_scan_params); // Set scan param which will also trigger the scanning
     if (ret != ESP_OK) {
@@ -781,17 +799,17 @@ void app_main(void)
     }
     vTaskDelay(pdMS_TO_TICKS(SCAN_TIME)); // wait while the scan occurs
     // esp_ble_gap_stop_scanning(); // let the scanning occur for 2s then stop. not really required since we alr specified to scan for 2s
-    vTaskDelay(pdMS_TO_TICKS(3000)); // 3s delay to make energyconsumption data collection clearer
+    vTaskDelay(pdMS_TO_TICKS(2000)); // 2s delay to make energyconsumption data collection clearer
 
 
     // If no unique mac detected during initial scanning, then just wait and repeat scan again
-    while (unique_macs_09_count == 0 && unique_macs_10_count == 0 && unique_macs_16_count == 0) {
-        vTaskDelay(pdMS_TO_TICKS(5000));
-        printf("No mules found, wait for 5s then scan again\n");
-        esp_ble_gap_start_scanning(SCAN_TIME/1000); 
-        vTaskDelay(pdMS_TO_TICKS(SCAN_TIME)); // wait while scanning
-        // esp_ble_gap_stop_scanning(); // scan will auto stop after the specified time
-    }
+    // while (unique_macs_09_count == 0 && unique_macs_10_count == 0 && unique_macs_16_count == 0) {
+    //     vTaskDelay(pdMS_TO_TICKS(5000));
+    //     printf("No mules found, wait for 5s then scan again\n");
+    //     esp_ble_gap_start_scanning(SCAN_TIME/1000); 
+    //     vTaskDelay(pdMS_TO_TICKS(SCAN_TIME)); // wait while scanning
+    //     // esp_ble_gap_stop_scanning(); // scan will auto stop after the specified time
+    // }
     printf("unique_mac count is %d, %d, %d\n", unique_macs_09_count, unique_macs_10_count, unique_macs_16_count);
     printf("Number of MAC is %d, Number of iPhone is %d\n", unique_macs_09_count, unique_macs_10_count - 2 * unique_macs_09_count > 0 ? unique_macs_10_count - 2 * unique_macs_09_count : 0 );
 
@@ -804,7 +822,6 @@ void app_main(void)
     // Send Message
     uint32_t current_message_id = 0;
 
-    static uint8_t data_to_send[] = "ABC";
 
     printf("Bytes: ");
     for (int i = 0; i < sizeof(data_to_send); i++) {
@@ -817,17 +834,25 @@ void app_main(void)
     for (uint32_t i = 0; i < NUM_MESSAGES; i++) {
         // generateAlphaSequence(i, data_to_send);
         for (int j = 0; j < REPEAT_MESSAGE_TIMES; j++) {
+            unique_macs_09_count = 0; unique_macs_10_count = 0; unique_macs_16_count = 0;
+
+            // For scanning between messages
+            ret = esp_ble_gap_set_scan_params(&ble_scan_params); // Set scan param which will also trigger the scanning
+            vTaskDelay(pdMS_TO_TICKS(SCAN_TIME)); // wait while scanning
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            printf("unique_mac count is %d, %d, %d\n", unique_macs_09_count, unique_macs_10_count, unique_macs_16_count);
+
             send_data_once_blocking(data_to_send, sizeof(data_to_send) - 1, 8, current_message_id);
-            vTaskDelay(MESSAGE_DELAY);
+            // vTaskDelay(MESSAGE_DELAY);
         }
 
         current_message_id++;
-        vTaskDelay(MESSAGE_DELAY);
+        vTaskDelay(pdMS_TO_TICKS(MESSAGE_DELAY));
+        data_to_send[0]++;
     }
 
     // Wrap up and end
     log_current_unix_time();
-    esp_ble_gap_stop_advertising();
     esp_wifi_disconnect();
     esp_wifi_stop();
 }
