@@ -43,7 +43,7 @@
 // Scan related
 #define MAX_UNIQUE_MACS 100
 #define MIN_PACKET_COUNT 0
-#define SCAN_TIME 1000 // in ms
+#define SCAN_TIME 100 // in ms
 static int apple_packet_count = 0;
 
 static esp_bd_addr_t unique_macs_09[MAX_UNIQUE_MACS];
@@ -57,6 +57,8 @@ static int unique_macs_16_packet_count[MAX_UNIQUE_MACS] = {0};
 static int unique_macs_09_count = 0;
 static int unique_macs_10_count = 0;
 static int unique_macs_16_count = 0;
+
+SemaphoreHandle_t semaphore; // For main to know when to resume
 
 static const char* LOG_TAG = "findmy_modem";
 static const char* MY_LOG = "My debug:";
@@ -147,7 +149,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             // printf("K: ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT called\n");
             if (param->scan_param_cmpl.status == ESP_BT_STATUS_SUCCESS) {
                 printf("Scan parameters set, start scanning for %d ms...\n", SCAN_TIME);
-                esp_ble_gap_start_scanning(SCAN_TIME/1000); // units in second 
+                esp_ble_gap_start_scanning(60); // let it scan indefinitely then stop later. To allow ms precision as the arg is in s.
             } else {
                 printf("Unable to set scan parameters, error code %d\n", param->scan_param_cmpl.status);
             }
@@ -158,6 +160,8 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             if (param->scan_start_cmpl.status != ESP_BT_STATUS_SUCCESS) {
                 printf("Scan start failed, error code %d\n", param->scan_start_cmpl.status);
             }
+            vTaskDelay(pdMS_TO_TICKS(SCAN_TIME)); // need to manually stop scan if ms precision is required.
+            esp_ble_gap_stop_scanning();
             break;
         }
         case ESP_GAP_BLE_SCAN_RESULT_EVT: {
@@ -300,7 +304,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT: {
             printf("K: ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT called\n");
             printf("Scan stopped\n");
-            printf("Apple BLE packets found: %d\n", apple_packet_count);
+            xSemaphoreGive(semaphore);
             break;
         }
 
@@ -320,7 +324,8 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     
-  
+    semaphore = xSemaphoreCreateBinary(); // starts empty. Need to give before it can take
+
     esp_err_t ret;
     ret = esp_bt_controller_init(&bt_cfg);
     if (ret != ESP_OK) {
@@ -357,11 +362,15 @@ void app_main(void)
         printf("Set scan parameters failed\n");
         return;
     }
-    vTaskDelay(pdMS_TO_TICKS(SCAN_TIME + 1)); // wait while the scan occurs + 1 to ensure that printing of all the advertisement data is done from the callback
     
-
-    printf("\n\nunique_mac count is %d, %d, %d\n", unique_macs_09_count, unique_macs_10_count, unique_macs_16_count);
-    printf("Estimated number of MAC device is %d, Number of iPhone is %d\n", unique_macs_09_count, unique_macs_10_count - 2 * unique_macs_09_count > 0 ? unique_macs_10_count - 2 * unique_macs_09_count : 0 );
+    // to wait for scan to stop before continueing.
+    xSemaphoreTake(semaphore, portMAX_DELAY); 
+    vTaskDelay(pdMS_TO_TICKS(3000)); // Wait additional 3s to ensure that ESP_GAP_BLE_SCAN_RESULT_EVT is all fully processed before continuing.
+    
+    printf("\n\nSummarised results from %dms scan: \n", SCAN_TIME);
+    printf("Apple BLE packets found: %d\n", apple_packet_count);
+    printf("unique_mac count is %d, %d, %d\n", unique_macs_09_count, unique_macs_10_count, unique_macs_16_count);
+    // printf("Estimated number of MAC device is %d, Number of iPhone is %d\n", unique_macs_09_count, unique_macs_10_count - 2 * unique_macs_09_count > 0 ? unique_macs_10_count - 2 * unique_macs_09_count : 0 );
 
     sort_mac();
     print_unique_mac();
