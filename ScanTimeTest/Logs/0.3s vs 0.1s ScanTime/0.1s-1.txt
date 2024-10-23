@@ -1,0 +1,24 @@
+Scan parameters set, start scanning for 100 ms...
+K: ESP_GAP_BLE_SCAN_START_COMPLETE_EVT called
+K: ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT called
+Scan stopped
+K: Contents of adv_data: 1DFF2D0102000110B97A795540104F05903C3E87BD3A2BC4A5229A76D159
+K: i value is 0, len is 0x1D, type is 0xff
+K: Contents of adv_data: 02010608094C696E6B737973
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x08, type is 0x09
+K: Contents of adv_data: 1EFF060001092022C36270EFEAB92075D0C8D4F535C5E6BC9F83A559D43322
+K: i value is 0, len is 0x1E, type is 0xff
+K: Contents of adv_data: 02011A17FF4C0009081316C0A812481B5816080012808D58B2980B
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x17, type is 0xff
+K: Apple BLE packet found
+MAC Address: 53:6F:F0:7D:26:DD: | Manufacturer data: 17 FF 4C 00 09 08 13 16 C0 A8 12 48 1B 58 16 08 00 12 80 8D 58 B2 98 0B  | Flag data: 02 01 1A
+
+
+Summarised results from 100ms scan:
+Apple BLE packets found: 1
+unique_mac count is 1, 0, 0
+There are 1 unique MAC for 0x09:
+53:6F:F0:7D:26:DD:
+There are 0 unique MAC for 0x10:

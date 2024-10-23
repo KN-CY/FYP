@@ -1,0 +1,104 @@
+Scan parameters set, start scanning for 300 ms...
+K: ESP_GAP_BLE_SCAN_START_COMPLETE_EVT called
+K: ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT called
+Scan stopped
+K: Contents of adv_data: 1DFF2D0102000110B97A795540104F05903C3E87BD3A2BC4A62AAD36BC86
+K: i value is 0, len is 0x1D, type is 0xff
+K: Contents of adv_data: 02011A020A0C0AFF4C001005371C50499A
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x02, type is 0x0a
+K: i value is 6, len is 0x0A, type is 0xff
+K: Apple BLE packet found
+MAC Address: 61:C5:8A:3B:EF:0A: | Manufacturer data: 0A FF 4C 00 10 05 37 1C 50 49 9A  | Flag data: 02 01 1A 
+K: Contents of adv_data: 0201021916F1FC0041A2FAA7788701569D71476864F452C09EACB79218
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x19, type is 0x16
+K: Contents of adv_data: 02011A1BFF4C000C0E00450F99ED7C4A717F8B955D02B110064E1D0AFC8C48
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x1B, type is 0xff
+K: Apple BLE packet found
+K: Contents of adv_data: 0201060AFF4C0010054C1C5ADC2B
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x0A, type is 0xff
+K: Apple BLE packet found
+MAC Address: 4D:9E:10:C1:14:C9: | Manufacturer data: 0A FF 4C 00 10 05 4C 1C 5A DC 2B  | Flag data: 02 01 06 
+K: Contents of adv_data: 02011A020A040BFF4C0010060C196065D008
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x02, type is 0x0a
+K: i value is 6, len is 0x0B, type is 0xff
+K: Apple BLE packet found
+MAC Address: 60:F3:1C:A3:90:9F: | Manufacturer data: 0B FF 4C 00 10 06 0C 19 60 65 D0 08  | Flag data: 02 01 1A 
+K: Contents of adv_data: 1EFF060001092022B6738DF72D45F734EBF30DA4ADC8488F5E226A962EC2FF
+K: i value is 0, len is 0x1E, type is 0xff
+K: Contents of adv_data: 02011A0BFF4C0009060373C0A801F1
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x0B, type is 0xff
+K: Apple BLE packet found
+MAC Address: 26:DC:14:BB:84:D4: | Manufacturer data: 0B FF 4C 00 09 06 03 73 C0 A8 01 F1  | Flag data: 02 01 1A 
+K: Contents of adv_data: 0201060AFF4C0010054A1C91D51E
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x0A, type is 0xff
+K: Apple BLE packet found
+MAC Address: 7A:A1:73:65:79:FF: | Manufacturer data: 0A FF 4C 00 10 05 4A 1C 91 D5 1E  | Flag data: 02 01 06 
+K: Contents of adv_data: 02011A020A0C0CFF4C0010073D1F139B67F578
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x02, type is 0x0a
+K: i value is 6, len is 0x0C, type is 0xff
+K: Apple BLE packet found
+MAC Address: 5E:B9:52:DF:A2:22: | Manufacturer data: 0C FF 4C 00 10 07 3D 1F 13 9B 67 F5 78  | Flag data: 02 01 1A 
+K: Contents of adv_data: 02011A17FF4C0009081369C0A812481B581608000021CE2147DA9C
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x17, type is 0xff
+K: Apple BLE packet found
+MAC Address: 49:6B:AB:C5:4E:C1: | Manufacturer data: 17 FF 4C 00 09 08 13 69 C0 A8 12 48 1B 58 16 08 00 00 21 CE 21 47 DA 9C  | Flag data: 02 01 1A
+K: Contents of adv_data: 02011A020A040BFF4C0010060C196065D008
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x02, type is 0x0a
+K: i value is 6, len is 0x0B, type is 0xff
+K: Apple BLE packet found
+MAC Address: 60:83:A1:D2:6C:46: | Manufacturer data: 0B FF 4C 00 10 06 0C 19 60 65 D0 08  | Flag data: 02 01 1A 
+K: Contents of adv_data: 07FF4C0012020000
+K: i value is 0, len is 0x07, type is 0xff
+K: Apple BLE packet found
+K: Contents of adv_data: 0201021916F1FC0041A2FAA7788701569D71476864F452C09EACB79218
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x19, type is 0x16
+K: Contents of adv_data: 1EFF060001092022B6738DF72D45F734EBF30DA4ADC8488F5E226A962EC2FF
+K: i value is 0, len is 0x1E, type is 0xff
+K: Contents of adv_data: 02011A1BFF4C000C0E00450F99ED7C4A717F8B955D02B110064E1D0AFC8C48
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x1B, type is 0xff
+K: Apple BLE packet found
+K: Contents of adv_data: 0201060AFF4C0010054C1C5ADC2B
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x0A, type is 0xff
+K: Apple BLE packet found
+MAC Address: 4D:9E:10:C1:14:C9: | Manufacturer data: 0A FF 4C 00 10 05 4C 1C 5A DC 2B  | Flag data: 02 01 06
+K: Contents of adv_data: 1E16F3FE4A17233530534A113253FC33B6486C8B421F4F553688B4A4305AFA
+K: i value is 0, len is 0x1E, type is 0x16
+K: Contents of adv_data: 1AFF4C00021550765CB7D9EA4E2199A4FA879613A49201A491E6CE
+K: i value is 0, len is 0x1A, type is 0xff
+K: Apple BLE packet found
+K: Contents of adv_data: 0201021916F1FC0041A2FAA7788701569D71476864F452C09EACB79218
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x19, type is 0x16
+K: Contents of adv_data: 02011A0BFF4C0009060373C0A801F1
+K: i value is 0, len is 0x02, type is 0x01
+K: i value is 3, len is 0x0B, type is 0xff
+K: Apple BLE packet found
+MAC Address: 26:DC:14:BB:84:D4: | Manufacturer data: 0B FF 4C 00 09 06 03 73 C0 A8 01 F1  | Flag data: 02 01 1A
+
+
+Summarised results from 300ms scan:
+Apple BLE packets found: 14
+unique_mac count is 2, 6, 0
+There are 2 unique MAC for 0x09: 
+26:DC:14:BB:84:D4:
+49:6B:AB:C5:4E:C1:
+There are 6 unique MAC for 0x10:
+4D:9E:10:C1:14:C9:
+5E:B9:52:DF:A2:22:
+60:83:A1:D2:6C:46:
+60:F3:1C:A3:90:9F:
+61:C5:8A:3B:EF:0A:
+7A:A1:73:65:79:FF:
