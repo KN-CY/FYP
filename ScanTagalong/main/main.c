@@ -48,12 +48,12 @@ static const char* MY_LOG = "My debug:";
 
 // Set custom modem id before flashing:
 // static const uint32_t modem_id = 0x67364600;
-static uint32_t modem_id = 0x6836464a;
+static uint32_t modem_id = 0x69364793;
 
 static uint8_t data_to_send[] = {0x21, 0x00}; // end with 0x00 
-const int NUM_MESSAGES = 50;
+const int NUM_MESSAGES = 900;
 const int REPEAT_MESSAGE_TIMES = 1;
-const int MESSAGE_DELAY = 120000;
+const int MESSAGE_DELAY = 0;
 
 
 // Scan related
@@ -837,10 +837,10 @@ void app_main(void)
             unique_macs_09_count = 0; unique_macs_10_count = 0; unique_macs_16_count = 0;
 
             // For scanning between messages
-            ret = esp_ble_gap_set_scan_params(&ble_scan_params); // Set scan param which will also trigger the scanning
-            vTaskDelay(pdMS_TO_TICKS(SCAN_TIME)); // wait while scanning
-            vTaskDelay(pdMS_TO_TICKS(1000));
-            printf("unique_mac count is %d, %d, %d\n", unique_macs_09_count, unique_macs_10_count, unique_macs_16_count);
+            // ret = esp_ble_gap_set_scan_params(&ble_scan_params); // Set scan param which will also trigger the scanning
+            // vTaskDelay(pdMS_TO_TICKS(SCAN_TIME)); // wait while scanning
+            // vTaskDelay(pdMS_TO_TICKS(1000));
+            // printf("unique_mac count is %d, %d, %d\n", unique_macs_09_count, unique_macs_10_count, unique_macs_16_count);
 
             send_data_once_blocking(data_to_send, sizeof(data_to_send) - 1, 8, current_message_id);
             // vTaskDelay(MESSAGE_DELAY);
@@ -848,7 +848,26 @@ void app_main(void)
 
         current_message_id++;
         vTaskDelay(pdMS_TO_TICKS(MESSAGE_DELAY));
-        data_to_send[0]++;
+        // data_to_send[0]++;
+
+        if (current_message_id == 300) {
+            current_message_id = 0;
+            // vTaskDelay(pdMS_TO_TICKS(900000)); // 15 min delay
+            // vTaskDelay(pdMS_TO_TICKS(600000)); // 10 min delay
+            // vTaskDelay(pdMS_TO_TICKS(300000)); // 5 min delay
+            // vTaskDelay(pdMS_TO_TICKS(150000)); // 2.5 min delay
+
+            // vTaskDelay(pdMS_TO_TICKS(450000)); // 7.5 min delay
+
+            vTaskDelay(pdMS_TO_TICKS(1800000)); // 30 min delay
+            // vTaskDelay(pdMS_TO_TICKS(1200000)); // 20 min delay
+        //    if (modem_id == 0x69364788 || modem_id == 0x6936478b || modem_id == 0x6936478e) {
+        //         vTaskDelay(pdMS_TO_TICKS(1800000)); // 30 min delay    
+        //    }
+            modem_id++;
+
+        }
+
     }
 
     // Wrap up and end

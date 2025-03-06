@@ -48,10 +48,10 @@ static const char* MY_LOG = "My debug:";
 
 // Set custom modem id before flashing:
 // static const uint32_t modem_id = 0x67364600;
-static uint32_t modem_id = 0x69364629;
+static uint32_t modem_id = 0x69364796;
 
 static uint8_t data_to_send[] = {0x21, 0x00}; // end with 0x00 
-const int NUM_MESSAGES = 300;
+const int NUM_MESSAGES = 2700;
 const int REPEAT_MESSAGE_TIMES = 1;
 const int MESSAGE_DELAY = 0;
 
@@ -884,10 +884,22 @@ void app_main(void)
         vTaskDelay(pdMS_TO_TICKS(MESSAGE_DELAY));
         // data_to_send[0]++;
         // if (current_message_id >= 100) {
-        if (current_message_id == 100 || current_message_id == 200 || current_message_id == 300) {
-            // current_message_id = 0;
-            vTaskDelay(pdMS_TO_TICKS(1200000)); // 20 min delay
-            // modem_id++;
+        if (current_message_id == 300) {
+            current_message_id = 0;
+            // vTaskDelay(pdMS_TO_TICKS(900000)); // 15 min delay
+            // vTaskDelay(pdMS_TO_TICKS(600000)); // 10 min delay
+            // vTaskDelay(pdMS_TO_TICKS(300000)); // 5 min delay
+            // vTaskDelay(pdMS_TO_TICKS(150000)); // 2.5 min delay
+
+            // vTaskDelay(pdMS_TO_TICKS(450000)); // 7.5 min delay
+
+            vTaskDelay(pdMS_TO_TICKS(1800000)); // 30 min delay
+            // vTaskDelay(pdMS_TO_TICKS(1200000)); // 20 min delay
+        //    if (modem_id == 0x6936476d || modem_id == 0x69364770 || modem_id == 0x69364773) {
+        //         vTaskDelay(pdMS_TO_TICKS(1800000)); // 30 min delay    
+        //    }
+            modem_id++;
+
         }
 
     }
