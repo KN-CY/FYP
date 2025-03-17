@@ -43,7 +43,7 @@
 // Scan related
 #define MAX_UNIQUE_MACS 100
 #define MIN_PACKET_COUNT 0
-#define SCAN_TIME 100 // in ms
+#define SCAN_TIME 3000 // in ms
 static int apple_packet_count = 0;
 
 static esp_bd_addr_t unique_macs_09[MAX_UNIQUE_MACS];
