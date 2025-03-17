@@ -48,10 +48,11 @@ static const char* MY_LOG = "My debug:";
 
 // Set custom modem id before flashing:
 // static const uint32_t modem_id = 0x67364600;
-static uint32_t modem_id = 0x69364793;
+// static uint32_t modem_id = 0x693647b2;
+static uint32_t modem_id = 0x87654321;
 
 static uint8_t data_to_send[] = {0x21, 0x00}; // end with 0x00 
-const int NUM_MESSAGES = 900;
+const int NUM_MESSAGES = 300;
 const int REPEAT_MESSAGE_TIMES = 1;
 const int MESSAGE_DELAY = 0;
 
@@ -850,7 +851,7 @@ void app_main(void)
         vTaskDelay(pdMS_TO_TICKS(MESSAGE_DELAY));
         // data_to_send[0]++;
 
-        if (current_message_id == 300) {
+        if (current_message_id == 50) {
             current_message_id = 0;
             // vTaskDelay(pdMS_TO_TICKS(900000)); // 15 min delay
             // vTaskDelay(pdMS_TO_TICKS(600000)); // 10 min delay
