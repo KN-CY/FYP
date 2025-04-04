@@ -42,14 +42,16 @@
 static const char* LOG_TAG = "findmy_modem";
 static const char* MY_LOG = "My debug:";
 
-// Advertsising related
+#define EXP_DELAY 0 // If we want to introduce delay between experiment runs
+#define EXP_MSG_TOTAL 50 // Define the number of messages for each experiment run. E.g. If NUM_MESSAGE = 300 and EXP_MSG_TOTAL = 50. 6 runs will occur
+
+// Advertising related
 #define INTERVAL_TIME 0x0020 // units of 0.625ms. 0x20 * 0.625ms = 20ms, Apple's recommendation
 #define SEND_TIME 1000 // Used for the TaskDelay so this units is in ms
+#define STATE_TTL 0x04 // Experimenting with using the state field in the adv_data as the TTL
 
 // Set custom modem id before flashing:
-// static const uint32_t modem_id = 0x67364600;
-// static uint32_t modem_id = 0x693647b2;
-static uint32_t modem_id = 0x87654321;
+static uint32_t modem_id = 0x693647dc;
 
 static uint8_t data_to_send[] = {0x21, 0x00}; // end with 0x00 
 const int NUM_MESSAGES = 300;
@@ -60,7 +62,7 @@ const int MESSAGE_DELAY = 0;
 // Scan related
 #define MAX_UNIQUE_MACS 1000
 #define MIN_PACKET_COUNT 0
-#define SCAN_TIME 1000 // in ms
+#define SCAN_TIME 3000 // in ms
 static int applePacketCount = 0;
 
 static esp_bd_addr_t unique_macs_09[MAX_UNIQUE_MACS];
@@ -270,7 +272,7 @@ static uint8_t adv_data[31] = {
     0xff, /* Manufacturer Specific Data (type 0xff) */
     0x4c, 0x00, /* Company ID (Apple) */
     0x12, 0x19, /* Offline Finding type and length */
-    0x00, /* State */
+    STATE_TTL, /* State */
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -319,8 +321,8 @@ static esp_ble_scan_params_t ble_scan_params = {
     .scan_type              = BLE_SCAN_TYPE_ACTIVE, // originally  BLE_SCAN_TYPE_ACTIVE
     .own_addr_type          = BLE_ADDR_TYPE_PUBLIC,
     .scan_filter_policy     = BLE_SCAN_FILTER_ALLOW_ALL,
-    .scan_interval          = 0x30, // 0x40 == 0.04 // 0x640 == 1s scan interval // originally 0x50
-    .scan_window            = 0x30 // 0x30 == 0.030s // 0x20 == 0.020s scan interval // originally 0x30
+    .scan_interval          = 0x4000, // 0x40 == 0.04 // 0x640 == 1s scan interval // originally 0x50
+    .scan_window            = 0x4000 // 0x30 == 0.030s // 0x20 == 0.020s scan interval // originally 0x30
 };// param definitions: https://github.com/pycom/esp-idf-2.0/blob/master/components/bt/bluedroid/api/include/esp_gap_ble_api.h#L203
 
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
@@ -368,8 +370,9 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         case ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT: {
             // printf("K: ESP_GAP_BLE_SCAN_PARAM_SET_COMPLETE_EVT called\n");
             if (param->scan_param_cmpl.status == ESP_BT_STATUS_SUCCESS) {
-                printf("Scan parameters set, start scanning for %d ms...\n", SCAN_TIME);
-                esp_ble_gap_start_scanning(SCAN_TIME/1000); // units in second 
+                printf("Scan parameters set, start scanning for %d ms...\n", SCAN_TIME); 
+                esp_ble_gap_start_scanning(60); // let it scan indefinitely then stop later. To allow ms precision as the arg is in s.
+
             } else {
                 printf("Unable to set scan parameters, error code %d\n", param->scan_param_cmpl.status);
             }
@@ -380,6 +383,8 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             if (param->scan_start_cmpl.status != ESP_BT_STATUS_SUCCESS) {
                 printf("Scan start failed, error code %d\n", param->scan_start_cmpl.status);
             }
+            vTaskDelay(pdMS_TO_TICKS(SCAN_TIME)); // need to manually stop scan if ms precision is required.
+            esp_ble_gap_stop_scanning();
             break;
         }
         case ESP_GAP_BLE_SCAN_RESULT_EVT: {
@@ -527,7 +532,9 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
         case ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT: {
             printf("K: ESP_GAP_BLE_SCAN_STOP_COMPLETE_EVT called\n");
             printf("Scan stopped\n");
-            printf("Apple BLE packets found: %d\n", applePacketCount);
+            //printf("Apple BLE packets found: %d\n", applePacketCount);
+            xSemaphoreGive(semaphore);
+
             break;
         }
 
@@ -560,15 +567,24 @@ void pub_from_priv(uint8_t *pub_compressed, uint8_t *priv) {
 void set_addr_from_key(esp_bd_addr_t addr, uint8_t *public_key) {
     addr[0] = public_key[0] | 0b11000000;
     addr[1] = public_key[1];
-    addr[2] = public_key[2];
+    addr[2] = public_key[2]; 
     addr[3] = public_key[3];
     addr[4] = public_key[4];
     addr[5] = public_key[5];
 }
 
 void set_payload_from_key(uint8_t *payload, uint8_t *public_key) {
-    /* copy last 22 bytes */
+    // /* copy last 22 bytes */
     memcpy(&payload[7], &public_key[6], 22);
+
+    // copy tweak value and upper 2 bytes of msg_id 
+    // memcpy(&payload[7], &public_key[6], 4);
+    // // copy upper 2 bytes of modemid
+    // memcpy(&payload[11], &public_key[3], 2);
+    // // rest of it is the same
+    // memcpy(&payload[13], &public_key[12], 16);
+
+
     /* append two bits of public key */
     payload[29] = public_key[0] >> 6;
 }
@@ -580,7 +596,13 @@ void copy_4b_big_endian(uint8_t *dst, uint8_t *src) {
 void copy_2b_big_endian(uint8_t *dst, uint8_t *src) {
     dst[0] = src[1]; dst[1] = src[0];
 }
+void swap_modem_id_2MSB_message_id_2LSB(uint8_t* public_key) {
+    uint8_t modem_id_2MSB[2] = {public_key[2], public_key[3]};
+    uint8_t message_id_2LSB[2] = {public_key[10], public_key[11]};
 
+    public_key[2] = message_id_2LSB[0]; public_key[3] = message_id_2LSB[1]; 
+    public_key[10] = modem_id_2MSB[0]; public_key[11] = modem_id_2MSB[1];    
+}
 // Only works up to 8 bits per advert
 // [2 byte magic] [4 byte modem_id] [2 byte tweak] [4 byte message id] [16 byte payload]
 void set_addr_and_payload_for_byte(uint32_t index, uint32_t msg_id, uint8_t val, uint32_t chunk_len) {
@@ -624,6 +646,10 @@ void set_addr_and_payload_for_byte(uint32_t index, uint32_t msg_id, uint8_t val,
     }
 
     memcpy(&curr_addr, &public_key[12], 16);
+
+    // [2 byte magic] [2LSB message id] [2LSB modem_id] [2 byte tweak] [2 MSB message id] [2MSB modem_id] [16 byte payload]
+    // To ensure different MAC address with each message
+    swap_modem_id_2MSB_message_id_2LSB(public_key);
 
     do {
       copy_2b_big_endian(&public_key[6], &valid_key_counter);
@@ -798,21 +824,28 @@ void app_main(void)
         printf("Set scan parameters failed\n");
         return;
     }
-    vTaskDelay(pdMS_TO_TICKS(SCAN_TIME)); // wait while the scan occurs
-    // esp_ble_gap_stop_scanning(); // let the scanning occur for 2s then stop. not really required since we alr specified to scan for 2s
-    vTaskDelay(pdMS_TO_TICKS(2000)); // 2s delay to make energyconsumption data collection clearer
+
+     // to wait for scan to stop before continueing.
+    xSemaphoreTake(semaphore, portMAX_DELAY);
+    vTaskDelay(pdMS_TO_TICKS(2000)); // 2s delay to ensure processing scanned packets completed
 
 
+    // If we want to ensure that mule is nearby before we start sending
     // If no unique mac detected during initial scanning, then just wait and repeat scan again
     // while (unique_macs_09_count == 0 && unique_macs_10_count == 0 && unique_macs_16_count == 0) {
     //     vTaskDelay(pdMS_TO_TICKS(5000));
     //     printf("No mules found, wait for 5s then scan again\n");
-    //     esp_ble_gap_start_scanning(SCAN_TIME/1000); 
-    //     vTaskDelay(pdMS_TO_TICKS(SCAN_TIME)); // wait while scanning
-    //     // esp_ble_gap_stop_scanning(); // scan will auto stop after the specified time
+        
+    //     ret = esp_ble_gap_set_scan_params(&ble_scan_params); // Set scan param which will also trigger the scanning
+    //     if (ret != ESP_OK) {
+    //         printf("Set scan parameters failed\n");
+    //         return;
+    //     } 
+    //      xSemaphoreTake(semaphore, portMAX_DELAY);
+    //     vTaskDelay(pdMS_TO_TICKS(2000)); // 2s delay to ensure processing scanned packets completed
     // }
     printf("unique_mac count is %d, %d, %d\n", unique_macs_09_count, unique_macs_10_count, unique_macs_16_count);
-    printf("Number of MAC is %d, Number of iPhone is %d\n", unique_macs_09_count, unique_macs_10_count - 2 * unique_macs_09_count > 0 ? unique_macs_10_count - 2 * unique_macs_09_count : 0 );
+    // printf("Number of MAC is %d, Number of iPhone is %d\n", unique_macs_09_count, unique_macs_10_count - 2 * unique_macs_09_count > 0 ? unique_macs_10_count - 2 * unique_macs_09_count : 0 );
 
 
     // // Sync time
@@ -837,10 +870,14 @@ void app_main(void)
         for (int j = 0; j < REPEAT_MESSAGE_TIMES; j++) {
             unique_macs_09_count = 0; unique_macs_10_count = 0; unique_macs_16_count = 0;
 
-            // For scanning between messages
+            // For scanning between messages (during experiments with long delay to ensure isolation maintained)
             // ret = esp_ble_gap_set_scan_params(&ble_scan_params); // Set scan param which will also trigger the scanning
-            // vTaskDelay(pdMS_TO_TICKS(SCAN_TIME)); // wait while scanning
-            // vTaskDelay(pdMS_TO_TICKS(1000));
+            // if (ret != ESP_OK) {
+            //     printf("Set scan parameters failed\n");
+            //     return;
+            // } 
+            // xSemaphoreTake(semaphore, portMAX_DELAY);
+            // vTaskDelay(pdMS_TO_TICKS(2000)); // 2s delay to ensure processing scanned packets completed
             // printf("unique_mac count is %d, %d, %d\n", unique_macs_09_count, unique_macs_10_count, unique_macs_16_count);
 
             send_data_once_blocking(data_to_send, sizeof(data_to_send) - 1, 8, current_message_id);
@@ -851,22 +888,13 @@ void app_main(void)
         vTaskDelay(pdMS_TO_TICKS(MESSAGE_DELAY));
         // data_to_send[0]++;
 
-        if (current_message_id == 50) {
+        if (current_message_id == EXP_MSG_TOTAL) {
             current_message_id = 0;
-            // vTaskDelay(pdMS_TO_TICKS(900000)); // 15 min delay
-            // vTaskDelay(pdMS_TO_TICKS(600000)); // 10 min delay
-            // vTaskDelay(pdMS_TO_TICKS(300000)); // 5 min delay
-            // vTaskDelay(pdMS_TO_TICKS(150000)); // 2.5 min delay
-
-            // vTaskDelay(pdMS_TO_TICKS(450000)); // 7.5 min delay
-
-            vTaskDelay(pdMS_TO_TICKS(1800000)); // 30 min delay
-            // vTaskDelay(pdMS_TO_TICKS(1200000)); // 20 min delay
-        //    if (modem_id == 0x69364788 || modem_id == 0x6936478b || modem_id == 0x6936478e) {
-        //         vTaskDelay(pdMS_TO_TICKS(1800000)); // 30 min delay    
-        //    }
+            
+            // Delay between experiment run
+            vTaskDelay(pdMS_TO_TICKS(EXP_DELAY));
+       
             modem_id++;
-
         }
 
     }
