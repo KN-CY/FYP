@@ -44,17 +44,20 @@ static const char* MY_LOG = "My debug:";
 
 // Advertising related
 #define INTERVAL_TIME 0x0020 // units of 0.625ms. 0x20 * 0.625ms = 20ms, Apple's recommendation
-#define SEND_TIME 1000 // Used for the TaskDelay so this units is in ms
+#define SEND_TIME 100 // Used for the TaskDelay so this units is in ms
+#define STATE_TTL 0x04 // Experimenting with using the state field in the adv_data as the TTL
 
 // Set custom modem id before flashing:
 // static const uint32_t modem_id = 0x67364600;
 // static uint32_t modem_id = 0x693647dc;
-static uint32_t modem_id = 0x87654321;
+static uint32_t modem_id = 0x693647dc;
 
 static uint8_t data_to_send[] = {0x21, 0x00}; // end with 0x00 
 const int NUM_MESSAGES = 300;
 const int REPEAT_MESSAGE_TIMES = 1;
 const int MESSAGE_DELAY = 0;
+
+
 
 
 // Scan related
@@ -270,7 +273,7 @@ static uint8_t adv_data[31] = {
     0xff, /* Manufacturer Specific Data (type 0xff) */
     0x4c, 0x00, /* Company ID (Apple) */
     0x12, 0x19, /* Offline Finding type and length */
-    0x00, /* State */
+    STATE_TTL, /* State */
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -902,6 +905,7 @@ void app_main(void)
         //    if (modem_id == 0x6936476d || modem_id == 0x69364770 || modem_id == 0x69364773) {
         //         vTaskDelay(pdMS_TO_TICKS(1800000)); // 30 min delay    
         //    }
+            // adv_data[6]--;
             modem_id++;
 
         }

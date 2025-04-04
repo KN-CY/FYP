@@ -46,12 +46,12 @@
 // Scan related
 #define MAX_UNIQUE_MACS 500
 #define MIN_PACKET_COUNT 0
-#define SCAN_TIME 70000 // in ms
+#define SCAN_TIME 300000 // in ms
 static int apple_packet_count = 0;
 
 // unique MAC as an identifier to each unique FindMy message
 static esp_bd_addr_t unique_macs[MAX_UNIQUE_MACS];
-bool is_sent[MAX_UNIQUE_MACS] = {false}; // to keep track of which messages have already been echoed
+// bool is_sent[MAX_UNIQUE_MACS] = {false}; // Not necessary after introducing TTL
 
 static int unique_macs_count = 0;
 
@@ -250,13 +250,28 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                     // printf("K: Apple BLE packet found\n");
          
                     // print_manufacturer_data(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
-
+                    
                    
                     // 12 type. Find My message detected
                     // 19 is the apple payload length. The find my message with the public key will have the length as 0x19
                     if (memcmp(manufacturer_data + 1, "\xFF\x4C\x00\x12\x19", 5) == 0) {
                         printf("Find My message detected\n");
                         // print_manufacturer_data(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
+                        
+                        // Check status and make sure TTL has not expired
+                        bool is_expired_TTL = false;
+                        if (adv_data[6] == 0x00) {
+                            printf("TTL exceeded\n");
+                            is_expired_TTL = true;
+                        }
+
+                         // Ensure that Modem_id address matches our IoT device
+                         bool is_our_device = true;
+                         if (bd_addr[4] != 0xff) {
+                            printf("Not our device's Find My message\n");
+                            is_our_device = false;
+                        }
+                        
                         bool is_unique = true;
                         for (int i = 0; i < unique_macs_count; i++) {
                             if (memcmp(bd_addr, unique_macs[i], sizeof(bd_addr)) == 0) {
@@ -265,13 +280,18 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                             }
                         }
 
-                        if (is_unique) {
-                            printf("is_unique MAC\n");
+                        if (is_unique && !is_expired_TTL && is_our_device) {
+                            printf("is_unique MAC and TTL not expired and packet belongs to us\n");
 
-                            // MAC address not found, add it if space available
+                            adv_data[6]--; // decrease the TTL
+                            
+                           
+
+                            // MAC address not found and TTL not exceeded, add it if space available
                             if (unique_macs_count < MAX_UNIQUE_MACS) {
                                 memcpy(unique_macs[unique_macs_count], bd_addr, sizeof(bd_addr));
                                 memcpy(adv_data_storage[unique_macs_count], adv_data, adv_data_len);
+                                printf("Added new Find My message to echo later\n");
                                 unique_macs_count++;
                             } else {
                                 printf("Maximum number of unique MACs reached.\n");
@@ -340,8 +360,29 @@ void app_main(void)
     }
     ESP_LOGI(LOG_TAG, "Callback initialized");
 
-    for (int i = 0; i < 10; i++) {
-       
+
+    // Just beacon some BLE advertisement for sanity check, so we can use nrf connect to make sure this device is alive
+    esp_bd_addr_t beacon_mac = {0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa};
+
+    esp_err_t status;
+    if ((status = esp_ble_gap_set_rand_addr(beacon_mac)) != ESP_OK) {
+        ESP_LOGE(LOG_TAG, "couldn't set random address: %s", esp_err_to_name(status));
+        return;
+
+    }
+
+    // uint8_t beacon_adv_data[ADV_DATA_LEN] = {};
+
+    // if ((esp_ble_gap_config_adv_data_raw((uint8_t*)&beacon_adv_data, sizeof(beacon_adv_data))) != ESP_OK) { // Triggers SET_COMPLETE callback
+    //     ESP_LOGE(LOG_TAG, "couldn't configure BLE adv: %s", esp_err_to_name(status));
+    //     return;
+    // }
+    // vTaskDelay(pdMS_TO_TICKS(2000));
+
+    
+    // for (int i = 0; i < 10; i++) {
+    // endlessly loop the cycle of scanning and echoing
+    for (;;) {
        
         // Each Scan cycle is 1000ms. e.g. If SCAN_TIME = 10000, then 10 cycles are done
         // For some reason (maybe memory) we cannot have a scan cycle be too long or else we can get only max 4-5 unique Find My Messages
@@ -356,28 +397,8 @@ void app_main(void)
             // to wait for scan to stop before continueing.
             xSemaphoreTake(semaphore, portMAX_DELAY); 
         }
-        // vTaskDelay(pdMS_TO_TICKS(3000)); // Wait additional 3s to ensure that ESP_GAP_BLE_SCAN_RESULT_EVT is all fully processed before continuing.
-        // vTaskDelay(pdMS_TO_TICKS(10000)); // Wait additional 3s to ensure that ESP_GAP_BLE_SCAN_RESULT_EVT is all fully processed before continuing.
-        
+        // unique mac of Find My messages
         printf("unique mac_count is %d\n", unique_macs_count);
-        // for (int i = 0; i < unique_macs_count; i++) {
-        //     printf("Find my packets detected\n");
-        //     esp_bd_addr_t curr_mac;
-        //     memcpy(curr_mac, unique_macs[i], ESP_BD_ADDR_LEN);
-        //     uint8_t curr_adv_data[ADV_DATA_LEN];
-        //     memcpy(curr_adv_data, adv_data_storage[i], ADV_DATA_LEN);
-        //     printf("MAC Address: ");
-        //     for (int j = 0; j < ESP_BD_ADDR_LEN; j++) {
-        //         printf("%02X:", curr_mac[j]);
-        //     }
-        //     printf(" | ");
-        //     printf("Adv data: ");
-        //     for (int j = 0; j < ADV_DATA_LEN; j++) {
-        //         printf("%02X ", curr_adv_data[j]);
-        //     }
-        //     printf("\n");
-
-        // }
 
         // Advertise the messages
         for (uint32_t i = 0; i < unique_macs_count; i++) {
@@ -396,11 +417,7 @@ void app_main(void)
             }
             printf("\n");
             
-            if (is_sent[i]) {
-                printf("Message already echoed, skipping\n");
-                continue;
-            }
-            is_sent[i] = true;
+  
             printf("Echoing message: \n");
 
             esp_err_t status;
@@ -414,6 +431,11 @@ void app_main(void)
             }
             xSemaphoreTake(semaphore, portMAX_DELAY);       
         }
+
+        // Clear list of messages and MAC address
+        unique_macs_count = 0;
+
+
     }
 }
 
