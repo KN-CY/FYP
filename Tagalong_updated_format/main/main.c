@@ -684,4 +684,3 @@ void app_main(void)
     esp_wifi_disconnect();
     esp_wifi_stop();
 }
-
