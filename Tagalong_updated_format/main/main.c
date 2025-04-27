@@ -79,152 +79,6 @@ static int unique_macs_16_count = 0;
 
 SemaphoreHandle_t semaphore; // For main to know when to resume
 
-// For WIFI
-// #define EXAMPLE_ESP_WIFI_SSID      CONFIG_ESP_WIFI_SSID
-// #define EXAMPLE_ESP_WIFI_PASS      CONFIG_ESP_WIFI_PASSWORD
-// #define EXAMPLE_ESP_MAXIMUM_RETRY  CONFIG_ESP_MAXIMUM_RETRY
-
-// #if CONFIG_ESP_WPA3_SAE_PWE_HUNT_AND_PECK
-// #define ESP_WIFI_SAE_MODE WPA3_SAE_PWE_HUNT_AND_PECK
-// #define EXAMPLE_H2E_IDENTIFIER ""
-// #elif CONFIG_ESP_WPA3_SAE_PWE_HASH_TO_ELEMENT
-// #define ESP_WIFI_SAE_MODE WPA3_SAE_PWE_HASH_TO_ELEMENT
-// #define EXAMPLE_H2E_IDENTIFIER CONFIG_ESP_WIFI_PW_ID
-// #elif CONFIG_ESP_WPA3_SAE_PWE_BOTH
-// #define ESP_WIFI_SAE_MODE WPA3_SAE_PWE_BOTH
-// #define EXAMPLE_H2E_IDENTIFIER CONFIG_ESP_WIFI_PW_ID
-// #endif
-// #if CONFIG_ESP_WIFI_AUTH_OPEN
-// #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_OPEN
-// #elif CONFIG_ESP_WIFI_AUTH_WEP
-// #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WEP
-// #elif CONFIG_ESP_WIFI_AUTH_WPA_PSK
-// #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA_PSK
-// #elif CONFIG_ESP_WIFI_AUTH_WPA2_PSK
-// #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA2_PSK
-// #elif CONFIG_ESP_WIFI_AUTH_WPA_WPA2_PSK
-// #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA_WPA2_PSK
-// #elif CONFIG_ESP_WIFI_AUTH_WPA3_PSK
-// #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA3_PSK
-// #elif CONFIG_ESP_WIFI_AUTH_WPA2_WPA3_PSK
-// #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WPA2_WPA3_PSK
-// #elif CONFIG_ESP_WIFI_AUTH_WAPI_PSK
-// #define ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD WIFI_AUTH_WAPI_PSK
-// #endif
-
-// static EventGroupHandle_t s_wifi_event_group;
-// #define WIFI_CONNECTED_BIT BIT0
-// #define WIFI_FAIL_BIT      BIT1
-
-// static const char *WIFI_TAG = "WIFI";
-// static int s_retry_num = 0;
-
-// static void event_handler(void* arg, esp_event_base_t event_base,
-//                                 int32_t event_id, void* event_data)
-// {
-//     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-//         esp_wifi_connect();
-//     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-//         if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
-//             esp_wifi_connect();
-//             s_retry_num++;
-//             ESP_LOGI(WIFI_TAG, "retry to connect to the AP");
-//         } else {
-//             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
-//         }
-//         ESP_LOGI(WIFI_TAG,"connect to the AP fail");
-//     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-//         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-//         ESP_LOGI(WIFI_TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
-//         s_retry_num = 0;
-//         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
-//     }
-// }
-
-// void wifi_init_sta(void)
-// {
-//     s_wifi_event_group = xEventGroupCreate();
-
-//     ESP_ERROR_CHECK(esp_netif_init());
-
-//     ESP_ERROR_CHECK(esp_event_loop_create_default());
-//     esp_netif_create_default_wifi_sta();
-
-//     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-//     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-//     esp_event_handler_instance_t instance_any_id;
-//     esp_event_handler_instance_t instance_got_ip;
-//     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
-//                                                         ESP_EVENT_ANY_ID,
-//                                                         &event_handler,
-//                                                         NULL,
-//                                                         &instance_any_id));
-//     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
-//                                                         IP_EVENT_STA_GOT_IP,
-//                                                         &event_handler,
-//                                                         NULL,
-//                                                         &instance_got_ip));
-
-//     wifi_config_t wifi_config = {
-//         .sta = {
-//             .ssid = EXAMPLE_ESP_WIFI_SSID,
-//             .password = EXAMPLE_ESP_WIFI_PASS,
-//             /* Authmode threshold resets to WPA2 as default if password matches WPA2 standards (pasword len => 8).
-//              * If you want to connect the device to deprecated WEP/WPA networks, Please set the threshold value
-//              * to WIFI_AUTH_WEP/WIFI_AUTH_WPA_PSK and set the password with length and format matching to
-//              * WIFI_AUTH_WEP/WIFI_AUTH_WPA_PSK standards.
-//              */
-//             .threshold.authmode = ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD,
-//             .sae_pwe_h2e = ESP_WIFI_SAE_MODE,
-//             .sae_h2e_identifier = EXAMPLE_H2E_IDENTIFIER,
-//         },
-//     };
-//     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-//     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
-//     ESP_ERROR_CHECK(esp_wifi_start() );
-
-//     ESP_LOGI(WIFI_TAG, "wifi_init_sta finished.");
-
-//     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
-//      * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
-//     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-//             WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-//             pdFALSE,
-//             pdFALSE,
-//             portMAX_DELAY);
-
-//     /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
-//      * happened. */
-//     if (bits & WIFI_CONNECTED_BIT) {
-//         ESP_LOGI(WIFI_TAG, "connected to ap SSID:%s password:%s",
-//                  EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
-//     } else if (bits & WIFI_FAIL_BIT) {
-//         ESP_LOGI(WIFI_TAG, "Failed to connect to SSID:%s, password:%s",
-//                  EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
-//     } else {
-//         ESP_LOGE(WIFI_TAG, "UNEXPECTED EVENT");
-//     }
-// }
-
-// For SNTP time sync
-// void wait_for_sntp_sync() {
-//     const int max_retry = 10;
-//     int retry = 0;
-//     time_t now = 0;
-
-//     while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < max_retry) {
-//         vTaskDelay(1000 / portTICK_PERIOD_MS);
-//     }
-
-//     time(&now);
-// }
-
-// void initialize_sntp() {
-//     sntp_setoperatingmode(SNTP_OPMODE_POLL);
-//     sntp_setservername(0, "pool.ntp.org"); // You can use other NTP servers as well
-//     sntp_init();
-// }
 
 void log_current_unix_time() {
     time_t current_time;
@@ -255,10 +109,6 @@ static void print_manufacturer_data(esp_bd_addr_t bd_addr, int manufacturer_data
 
     printf("\n");
 }
-
-
-
-
 
 /** Callback function for BT events */
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
@@ -576,15 +426,6 @@ void set_addr_from_key(esp_bd_addr_t addr, uint8_t *public_key) {
 void set_payload_from_key(uint8_t *payload, uint8_t *public_key) {
     // /* copy last 22 bytes */
     memcpy(&payload[7], &public_key[6], 22);
-
-    // copy tweak value and upper 2 bytes of msg_id 
-    // memcpy(&payload[7], &public_key[6], 4);
-    // // copy upper 2 bytes of modemid
-    // memcpy(&payload[11], &public_key[3], 2);
-    // // rest of it is the same
-    // memcpy(&payload[13], &public_key[12], 16);
-
-
     /* append two bits of public key */
     payload[29] = public_key[0] >> 6;
 }
@@ -662,8 +503,6 @@ void set_addr_and_payload_for_byte(uint32_t index, uint32_t msg_id, uint8_t val,
     set_payload_from_key(adv_data, public_key);
 }
 
-// Todo: modify it to start advertisement
-
 void advertising_cycle() {
     esp_err_t status;
 
@@ -685,49 +524,6 @@ void advertising_cycle() {
 
 
 }
-// void reset_advertising() {
-//     ESP_LOGI(MY_LOG, "Calling reset_advertising");
-
-//     esp_err_t status;
-//     ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_stop_advertising");
-//     esp_ble_gap_stop_advertising();
-//     ESP_LOGI(MY_LOG, "After calling esp_ble_gap_stop_advertising");
-
-
-//     ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_set_rand_addr");
-//     if ((status = esp_ble_gap_set_rand_addr(rnd_addr)) != ESP_OK) {
-//         ESP_LOGE(LOG_TAG, "couldn't set random address: %s", esp_err_to_name(status));
-//         return;
-//     }
-//     ESP_LOGI(MY_LOG, "After calling esp_ble_gap_set_rand_addr");
-
-//     ESP_LOGI(MY_LOG, "Before calling esp_ble_gap_config_adv_data_raw");
-//     if ((esp_ble_gap_config_adv_data_raw((uint8_t*)&adv_data, sizeof(adv_data))) != ESP_OK) {
-//         ESP_LOGE(LOG_TAG, "couldn't configure BLE adv: %s", esp_err_to_name(status));
-//         return;
-//     }
-//     ESP_LOGI(MY_LOG, "After calling esp_ble_gap_config_adv_data_raw");
-
-// }
-
-// void generateAlphaSequence(int sequenceNumber, uint8_t *data_to_send) {
-//     if (sequenceNumber < 0 || data_to_send == NULL) {
-//         printf("Invalid input or output array\n");
-//         return;
-//     }
-//     int base = 'A';
-//     int numChars = 26;
-//     int firstChar = base + (sequenceNumber / numChars);
-//     int secondChar = base + (sequenceNumber % numChars);
-//     if (secondChar > 'Z') {
-//         secondChar = base + (secondChar % numChars);
-//         firstChar++;
-//     }
-//     data_to_send[0] = (uint8_t)firstChar;
-//     data_to_send[1] = (uint8_t)secondChar;
-// }
-
-
 
 void send_data_once_blocking(uint8_t* data_to_send, uint32_t len, uint32_t chunk_len, uint32_t msg_id) {
     ESP_LOGI(MY_LOG, "Calling send_data_once_blocking");
@@ -776,8 +572,6 @@ void send_data_once_blocking(uint8_t* data_to_send, uint32_t len, uint32_t chunk
 
 void app_main(void)
 {
-    // vTaskDelay(pdMS_TO_TICKS(3000)); // 3s delay to make energy consumption data collection clearer
-
     // Init Flash and BT
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
@@ -807,17 +601,12 @@ void app_main(void)
     }
     
     semaphore = xSemaphoreCreateBinary(); // starts empty. Need to give before it can take
-    // Init WIFI
-    // ESP_LOGI(WIFI_TAG, "ESP_WIFI_MODE_STA");
-    // wifi_init_sta();
 
     if ((ret = esp_ble_gap_register_callback(esp_gap_cb)) != ESP_OK) {
         ESP_LOGE(LOG_TAG, "gap register error: %s", esp_err_to_name(ret));
         return;
     }
     ESP_LOGI(LOG_TAG, "Callback initialized");
-
-    //vTaskDelay(pdMS_TO_TICKS(2000)); // 2s delay to make energy consumption data collection clearer
 
     ret = esp_ble_gap_set_scan_params(&ble_scan_params); // Set scan param which will also trigger the scanning
     if (ret != ESP_OK) {
@@ -846,24 +635,15 @@ void app_main(void)
     // }
     printf("unique_mac count is %d, %d, %d\n", unique_macs_09_count, unique_macs_10_count, unique_macs_16_count);
     // printf("Number of MAC is %d, Number of iPhone is %d\n", unique_macs_09_count, unique_macs_10_count - 2 * unique_macs_09_count > 0 ? unique_macs_10_count - 2 * unique_macs_09_count : 0 );
-
-
-    // // Sync time
-    // initialize_sntp();
-    // wait_for_sntp_sync();
-
     
     // Send Message
     uint32_t current_message_id = 0;
-
 
     printf("Bytes: ");
     for (int i = 0; i < sizeof(data_to_send); i++) {
         printf("%02x ", data_to_send[i]);
     }
     printf("\n");
-
-
     
     for (uint32_t i = 0; i < NUM_MESSAGES; i++) {
         // generateAlphaSequence(i, data_to_send);
