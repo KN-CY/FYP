@@ -19,7 +19,6 @@
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "sdkconfig.h"
-#include "uECC.h"
 
 #include "esp_timer.h"
 #include "esp_wifi.h"

@@ -19,7 +19,6 @@
 #include "driver/uart.h"
 #include "driver/gpio.h"
 #include "sdkconfig.h"
-#include "uECC.h"
 
 #include "esp_timer.h"
 #include "esp_wifi.h"
@@ -51,7 +50,6 @@ static int apple_packet_count = 0;
 
 // unique MAC as an identifier to each unique FindMy message
 static esp_bd_addr_t unique_macs[MAX_UNIQUE_MACS];
-// bool is_sent[MAX_UNIQUE_MACS] = {false}; // Not necessary after introducing TTL
 
 static int unique_macs_count = 0;
 
@@ -152,8 +150,6 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                 esp_ble_gap_stop_advertising();
             }
 
-            // esp_ble_gap_stop_advertising(); // testing out sending just 1 packet
-
             
             break;
 
@@ -196,10 +192,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
             esp_bd_addr_t bd_addr; // K: Stores the mac address of the BLE device
             memcpy(bd_addr, scan_result->scan_rst.bda, sizeof(bd_addr));
 
-            // esp_bt_dev_type_t dev_type = scan_result->scan_rst.dev_type ; // Flag for device capability
-            // esp_ble_addr_type_t add_type = scan_result->scan_rst.ble_addr_type;
-            // esp_ble_evt_type_t event_type = scan_result->scan_rst.ble_evt_type;            
-
+   
             
             if (scan_result->scan_rst.search_evt == ESP_GAP_SEARCH_INQ_RES_EVT) { // K: Indicates that an advertisement packet received
                 uint8_t *adv_data = scan_result->scan_rst.ble_adv;
@@ -247,10 +240,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
                 }
 
                 if (manufacturer_data_length > 0) {
-                    // printf("K: Apple BLE packet found\n");
-         
-                    // print_manufacturer_data(bd_addr, manufacturer_data_length, manufacturer_data, flag_data_length, flag_data);
-                    
+                    // printf("K: Apple BLE packet found\n");                    
                    
                     // 12 type. Find My message detected
                     // 19 is the apple payload length. The find my message with the public key will have the length as 0x19
@@ -285,8 +275,6 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 
                             adv_data[6]--; // decrease the TTL
                             
-                           
-
                             // MAC address not found and TTL not exceeded, add it if space available
                             if (unique_macs_count < MAX_UNIQUE_MACS) {
                                 memcpy(unique_macs[unique_macs_count], bd_addr, sizeof(bd_addr));
@@ -321,7 +309,6 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 
 void app_main(void)
 {
-
     // Init Flash and BT
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
@@ -352,8 +339,6 @@ void app_main(void)
         return;
     }
     
-
-
     if ((ret = esp_ble_gap_register_callback(esp_gap_cb)) != ESP_OK) {
         ESP_LOGE(LOG_TAG, "gap register error: %s", esp_err_to_name(ret));
         return;
